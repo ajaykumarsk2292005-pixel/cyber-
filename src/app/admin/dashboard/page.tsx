@@ -432,26 +432,6 @@ export default function AdminDashboard() {
                         </div>
                         </div>
                         
-                        {/* Display Passkeys/Hints for Session 4 (Finale) */}
-                        {session === 4 && (
-                          <div className="w-full mt-4 pt-4 border-t border-zinc-800">
-                            <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Hints / Passkeys Discovered</h4>
-                            <div className="flex flex-wrap gap-2">
-                              <div className="px-3 py-1.5 bg-black border border-green-500/30">
-                                <span className="text-[9px] text-zinc-500 uppercase block">S1 Passkey</span>
-                                <span className="text-xs font-mono font-bold text-green-400">{passkeys[1]}</span>
-                              </div>
-                              <div className="px-3 py-1.5 bg-black border border-green-500/30">
-                                <span className="text-[9px] text-zinc-500 uppercase block">S2 Passkey</span>
-                                <span className="text-xs font-mono font-bold text-green-400">{passkeys[2]}</span>
-                              </div>
-                              <div className="px-3 py-1.5 bg-black border border-green-500/30">
-                                <span className="text-[9px] text-zinc-500 uppercase block">S3 Passkey</span>
-                                <span className="text-xs font-mono font-bold text-green-400">{passkeys[3]}</span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
