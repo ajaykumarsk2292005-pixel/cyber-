@@ -163,23 +163,36 @@ export default function WaitingRoom() {
                       <Lock className="w-16 h-16 text-zinc-700 mx-auto" />
                     )}
                   </motion.div>
-                  <p className={`text-sm uppercase tracking-widest ${isUnlocked ? 'text-green-500 font-bold' : 'text-zinc-500'}`}>
-                    {isUnlocked ? 'Override Granted' : 'Locked by Administrator'}
+                  <p className={`text-sm uppercase tracking-widest ${isUnlocked ? 'text-green-500 font-bold' : sessionStatus === 'ENDED' ? 'text-red-500' : 'text-zinc-500'}`}>
+                    {isUnlocked ? 'Override Granted' : sessionStatus === 'ENDED' ? 'Session Terminated' : 'Locked by Administrator'}
                   </p>
                 </div>
               </div>
 
-              <button 
-                disabled={!isUnlocked}
-                onClick={() => router.push(`/session/${currentSession}`)}
-                className={`w-full py-4 flex items-center justify-center gap-2 uppercase tracking-widest text-xs font-bold transition-all ${
-                  isUnlocked 
-                    ? "bg-green-500 text-black hover:bg-green-400 cursor-pointer shadow-[0_0_20px_rgba(34,197,94,0.3)]"
-                    : "bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"
-                }`}
-              >
-                Enter Cyber Hunt <ArrowRight className="w-4 h-4" />
-              </button>
+              {sessionStatus === "ENDED" ? (
+                <button 
+                  onClick={() => {
+                    const nextSession = Math.min(currentSession + 1, 4);
+                    localStorage.setItem("cyberhunt_current_session", nextSession.toString());
+                    setCurrentSession(nextSession);
+                  }}
+                  className="w-full py-4 flex items-center justify-center gap-2 uppercase tracking-widest text-xs font-bold transition-all bg-red-500 text-black hover:bg-red-400 cursor-pointer shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+                >
+                  Proceed to Next Phase <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button 
+                  disabled={!isUnlocked}
+                  onClick={() => router.push(`/session/${currentSession}`)}
+                  className={`w-full py-4 flex items-center justify-center gap-2 uppercase tracking-widest text-xs font-bold transition-all ${
+                    isUnlocked 
+                      ? "bg-green-500 text-black hover:bg-green-400 cursor-pointer shadow-[0_0_20px_rgba(34,197,94,0.3)]"
+                      : "bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"
+                  }`}
+                >
+                  Enter Cyber Hunt <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </motion.div>
         </div>
