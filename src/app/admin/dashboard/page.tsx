@@ -343,7 +343,7 @@ export default function AdminDashboard() {
                 <p className="text-xs font-mono text-zinc-500 mb-8">Deploy specific sessions to all active nodes. This action is instantaneous globally.</p>
 
                 <div className="grid grid-cols-1 gap-4">
-                  {[1, 2, 3, 4, 5].map((session) => {
+                  {[1, 2, 3, 4].map((session) => {
                     const status = sessionStates[session];
                     const isActive = status === "ACTIVE";
                     const isPaused = status === "PAUSED";
@@ -373,7 +373,7 @@ export default function AdminDashboard() {
                           <div>
                             <div className="flex items-center gap-3">
                               <h3 className="text-sm font-bold uppercase tracking-widest">
-                                Session {session} {session === 1 ? "(Aptitude)" : session === 5 ? "(Finale)" : ""}
+                                Session {session} {session === 1 ? "(Aptitude)" : session === 4 ? "(Finale)" : ""}
                               </h3>
                               {duration !== "TBA" && (
                                 <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-zinc-400 text-[9px] font-mono rounded-sm">
@@ -429,206 +429,31 @@ export default function AdminDashboard() {
                             <XOctagon className="w-3 h-3" /> End
                           </button>
                         </div>
+                        
+                        {/* Display Passkeys/Hints for Session 4 (Finale) */}
+                        {session === 4 && (
+                          <div className="w-full mt-4 pt-4 border-t border-zinc-800">
+                            <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2">Hints / Passkeys Discovered</h4>
+                            <div className="flex flex-wrap gap-2">
+                              <div className="px-3 py-1.5 bg-black border border-green-500/30">
+                                <span className="text-[9px] text-zinc-500 uppercase block">S1 Passkey</span>
+                                <span className="text-xs font-mono font-bold text-green-400">{passkeys[1]}</span>
+                              </div>
+                              <div className="px-3 py-1.5 bg-black border border-green-500/30">
+                                <span className="text-[9px] text-zinc-500 uppercase block">S2 Passkey</span>
+                                <span className="text-xs font-mono font-bold text-green-400">{passkeys[2]}</span>
+                              </div>
+                              <div className="px-3 py-1.5 bg-black border border-green-500/30">
+                                <span className="text-[9px] text-zinc-500 uppercase block">S3 Passkey</span>
+                                <span className="text-xs font-mono font-bold text-green-400">{passkeys[3]}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* QUESTION MGMT TAB */}
-          {activeTab === "questions" && (
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }}
-              className="space-y-8"
-            >
-              {[
-                {
-                  title: "Season 1: Infiltration (Text Puzzles)",
-                  passkeyToUnlockNext: "SEASON2-ACCESS",
-                  questions: [
-                    { q: "What is the standard port for HTTPS communication?", a: "Port 443" },
-                    { q: "Decode this string: YWRtaW4=", a: "admin" },
-                    { q: "What does XSS stand for?", a: "Cross Site Scripting" },
-                    { q: "What protocol resolves IP addresses to MAC addresses?", a: "ARP" },
-                    { q: "A widely used 128-bit hash function that is considered cryptographically broken.", a: "MD5" },
-                    { q: "What type of attack involves overwhelming a target server with traffic?", a: "DDoS" },
-                    { q: "Which widely used tool is known as a network protocol analyzer?", a: "Wireshark" },
-                    { q: "In Linux, what is the absolute path to the file containing hashed user passwords?", a: "/etc/shadow" },
-                    { q: "What is the practice of hiding a secret message inside an ordinary file (like an image)?", a: "Steganography" },
-                    { q: "What command line tool is used to discover the path a packet takes to a destination network?", a: "traceroute" },
-                  ]
-                },
-                {
-                  title: "Season 2: Reconnaissance (Image Clues)",
-                  passkeyToUnlockNext: "SEASON3-ACCESS",
-                  questions: [
-                    { q: "Based on the visual clue above, what is the target IP address?", a: "10.0.0.5" },
-                    { q: "Analyze the hex dump. What file format is this?", a: "PE" },
-                    { q: "Which node is acting as the command and control server?", a: "Node 0x99" },
-                    { q: "What encryption algorithm was likely used here?", a: "AES-256" },
-                    { q: "Identify the compromised user account from the logs.", a: "service_acct" },
-                    { q: "What is hidden inside the least significant bits?", a: "A URL" },
-                    { q: "What cloud service is being exploited in this diagram?", a: "S3 Bucket" },
-                  ]
-                },
-                {
-                  title: "Season 3: Forensics (Video Clues)",
-                  passkeyToUnlockNext: "SEASON4-ACCESS",
-                  questions: [
-                    { q: "Watch the video footage. What port was open on the terminal screen?", a: "22" },
-                    { q: "At 0:05, a command is executed. What was the command?", a: "nmap -sV" },
-                    { q: "Identify the malware signature shown in the sandbox environment.", a: "WannaCry" },
-                    { q: "Which user account was compromised during the brute force attack?", a: "admin" },
-                    { q: "What is the physical location (GPS coordinates) flashed on the monitor?", a: "51.5074° N" },
-                    { q: "What encryption key was intercepted in the packet capture?", a: "0xDEADBEEF" },
-                    { q: "What was the name of the vulnerable service running?", a: "vsftpd 2.3.4" },
-                    { q: "Identify the final flag hidden in the audio spectrogram.", a: "FLAG{h1dd3n_w4v}" },
-                  ]
-                }
-              ].map((season, sIdx) => (
-                <div key={sIdx} className="bg-black/50 border border-zinc-800 p-6 relative">
-                  <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-zinc-500"></div>
-                  
-                  <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-4 border-b border-zinc-800">
-                    <h3 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2 md:mb-0">
-                      {season.title}
-                    </h3>
-                    <div className="flex items-center gap-2 bg-green-950/30 border border-green-500/50 px-4 py-2">
-                      <span className="text-xs uppercase font-mono text-zinc-400">Unlock Next Season:</span>
-                      
-                      {editingPasskey === sIdx + 1 ? (
-                        <div className="flex items-center gap-2 ml-2">
-                          <input 
-                            type="text" 
-                            value={tempPasskey} 
-                            onChange={(e) => setTempPasskey(e.target.value)}
-                            className="bg-black border border-green-500/50 text-green-400 font-mono text-sm px-2 py-1 outline-none w-40 tracking-widest uppercase"
-                          />
-                          <button onClick={() => handleSavePasskey(sIdx + 1)} className="text-green-500 hover:text-green-400 transition-colors p-1"><Save className="w-4 h-4"/></button>
-                          <button onClick={() => setEditingPasskey(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors p-1"><X className="w-4 h-4"/></button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 ml-2">
-                          <span className="text-sm font-bold font-mono tracking-widest text-green-400">{passkeys[(sIdx + 1) as keyof typeof passkeys]}</span>
-                          <button 
-                            onClick={() => { 
-                              setEditingPasskey(sIdx + 1); 
-                              setTempPasskey(passkeys[(sIdx + 1) as keyof typeof passkeys]); 
-                            }} 
-                            className="text-zinc-500 hover:text-green-400 transition-colors p-1"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {season.questions.map((q, qIdx) => (
-                      <div key={qIdx} className="flex flex-col md:flex-row gap-4 p-4 border border-zinc-800/50 bg-zinc-900/30 hover:bg-zinc-900/80 transition-colors">
-                        <div className="flex-1">
-                          <span className="text-zinc-600 font-bold mr-3">{String(qIdx + 1).padStart(2, '0')}.</span>
-                          <span className="text-zinc-300 text-sm tracking-wide">{q.q}</span>
-                        </div>
-                        <div className="md:w-1/3 flex items-center">
-                          <div className="text-xs tracking-widest font-mono text-green-500 bg-green-950/20 px-3 py-1 border border-green-900/50 w-full text-center md:text-left">
-                            {q.a}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </motion.div>
-          )}
-
-          {/* IMAGE CHALLENGE TAB (SEASON 2) */}
-          {activeTab === "image-challenge" && (
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }}
-              className="space-y-6 bg-black/50 border border-zinc-800 p-6 relative"
-            >
-              <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-zinc-500"></div>
-              <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Season 2: Image Overrides</h2>
-              <p className="text-sm text-zinc-500 font-mono mb-6 pb-6 border-b border-zinc-800">
-                Provide public URLs for the images you want to use for each challenge. These will instantly update the screens for all active participants.
-              </p>
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5, 6, 7].map((num) => {
-                  const storageKey = `s2_img_${num}`;
-                  return (
-                    <div key={num} className="flex flex-col md:flex-row gap-4 p-4 border border-zinc-800/50 bg-zinc-900/30 items-start md:items-center">
-                      <div className="w-8 h-8 flex items-center justify-center bg-black border border-zinc-700 font-bold">{num}</div>
-                      <div className="flex-1 w-full relative">
-                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                        <input 
-                          suppressHydrationWarning
-                          type="text" 
-                          placeholder={`Enter Image URL for Challenge ${num} (e.g. https://...)`}
-                          defaultValue={typeof window !== 'undefined' ? localStorage.getItem(storageKey) || "" : ""}
-                          onBlur={(e) => {
-                            if(e.target.value) {
-                              localStorage.setItem(storageKey, e.target.value);
-                            } else {
-                              localStorage.removeItem(storageKey);
-                            }
-                          }}
-                          className="w-full bg-black border border-zinc-800 text-zinc-300 font-mono text-xs pl-10 pr-4 py-3 outline-none focus:border-zinc-500 transition-colors"
-                        />
-                      </div>
-                      <div className="text-[10px] uppercase font-mono text-zinc-500">Auto-saves on blur</div>
-                    </div>
-                  )
-                })}
-              </div>
-            </motion.div>
-          )}
-
-          {/* VIDEO CHALLENGE TAB (SEASON 3) */}
-          {activeTab === "video-challenge" && (
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }}
-              className="space-y-6 bg-black/50 border border-zinc-800 p-6 relative"
-            >
-              <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-zinc-500"></div>
-              <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Season 3: Video Overrides</h2>
-              <p className="text-sm text-zinc-500 font-mono mb-6 pb-6 border-b border-zinc-800">
-                Provide public URLs (.mp4) for the surveillance footage used in Season 3.
-              </p>
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => {
-                  const storageKey = `s3_vid_${num}`;
-                  return (
-                    <div key={num} className="flex flex-col md:flex-row gap-4 p-4 border border-zinc-800/50 bg-zinc-900/30 items-start md:items-center">
-                      <div className="w-8 h-8 flex items-center justify-center bg-black border border-zinc-700 font-bold">{num}</div>
-                      <div className="flex-1 w-full relative">
-                        <Video className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                        <input 
-                          suppressHydrationWarning
-                          type="text" 
-                          placeholder={`Enter Video URL (.mp4) for Challenge ${num}`}
-                          defaultValue={typeof window !== 'undefined' ? localStorage.getItem(storageKey) || "" : ""}
-                          onBlur={(e) => {
-                            if(e.target.value) {
-                              localStorage.setItem(storageKey, e.target.value);
-                            } else {
-                              localStorage.removeItem(storageKey);
-                            }
-                          }}
-                          className="w-full bg-black border border-zinc-800 text-zinc-300 font-mono text-xs pl-10 pr-4 py-3 outline-none focus:border-zinc-500 transition-colors"
-                        />
-                      </div>
-                      <div className="text-[10px] uppercase font-mono text-zinc-500">Auto-saves on blur</div>
-                    </div>
-                  )
-                })}
               </div>
             </motion.div>
           )}
