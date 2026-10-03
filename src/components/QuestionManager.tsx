@@ -9,9 +9,28 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingData, setEditingData] = useState<Question | null>(null);
 
+  const [passkey, setPasskey] = useState("");
+  const [isEditingPasskey, setIsEditingPasskey] = useState(false);
+  const [tempPasskey, setTempPasskey] = useState("");
+
   useEffect(() => {
     setQuestions(getQuestions(sessionNumber));
+    const savedPasskey = localStorage.getItem(`passkey_${sessionNumber}`);
+    if (savedPasskey) {
+      setPasskey(savedPasskey);
+    } else {
+      // Defaults
+      if (sessionNumber === 1) setPasskey("SEASON2-ACCESS");
+      if (sessionNumber === 2) setPasskey("SEASON3-ACCESS");
+      if (sessionNumber === 3) setPasskey("SEASON4-ACCESS");
+    }
   }, [sessionNumber]);
+
+  const handleSavePasskey = () => {
+    setPasskey(tempPasskey);
+    localStorage.setItem(`passkey_${sessionNumber}`, tempPasskey);
+    setIsEditingPasskey(false);
+  };
 
   const handleSave = (index: number) => {
     if (!editingData) return;
@@ -131,6 +150,44 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
             )}
           </div>
         ))}
+      </div>
+      <div className="mt-8 pt-6 border-t border-zinc-800 bg-black/50 p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-100 mb-1">
+              Unlock Passkey (Hint)
+            </h3>
+            <p className="text-xs text-zinc-500 font-mono">
+              The secret passkey required to unlock the next session.
+            </p>
+          </div>
+          <div className="mt-4 md:mt-0">
+            {isEditingPasskey ? (
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  value={tempPasskey} 
+                  onChange={(e) => setTempPasskey(e.target.value)}
+                  className="bg-black border border-green-500/50 text-green-400 font-mono text-sm px-3 py-2 outline-none tracking-widest uppercase"
+                />
+                <button onClick={handleSavePasskey} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors p-2"><Save className="w-4 h-4"/></button>
+                <button onClick={() => setIsEditingPasskey(false)} className="bg-zinc-900 border border-zinc-700 text-zinc-500 hover:text-white transition-colors p-2"><Trash2 className="w-4 h-4"/></button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="px-4 py-2 border border-zinc-800 bg-black">
+                  <span className="text-sm font-bold font-mono tracking-widest text-green-400">{passkey}</span>
+                </div>
+                <button 
+                  onClick={() => { setIsEditingPasskey(true); setTempPasskey(passkey); }} 
+                  className="bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-colors p-2"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
