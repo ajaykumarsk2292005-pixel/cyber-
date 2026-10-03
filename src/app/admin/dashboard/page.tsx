@@ -216,6 +216,45 @@ export default function AdminDashboard() {
     setEditingPasskey(null);
   };
 
+  const exportToCSV = (data: Team[], filename: string) => {
+    if (data.length === 0) {
+      alert("No data available to export.");
+      return;
+    }
+    
+    // Headers
+    const headers = ['Rank', 'Team Alias', 'College', 'Node Alpha', 'Node Beta', 'Status'];
+    
+    // Rows
+    const rows = data.map((team, index) => {
+      // Escape commas in strings
+      const escapeStr = (str: string) => `"${(str || '').replace(/"/g, '""')}"`;
+      
+      return [
+        index + 1,
+        escapeStr(team.teamAlias || team.team_alias || ''),
+        escapeStr(team.college || ''),
+        escapeStr(team.nodeAlpha || team.node_alpha || ''),
+        escapeStr(team.nodeBeta || team.node_beta || ''),
+        escapeStr(team.status || '')
+      ].join(',');
+    });
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${filename}_${new Date().getTime()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const TABS = [
     { id: "telemetry", label: "Telemetry", icon: Activity },
     { id: "event-control", label: "Event Control", icon: Settings },
@@ -226,7 +265,6 @@ export default function AdminDashboard() {
     { id: "finale-challenge", label: "Finale Challenge", icon: Lock },
     { id: "monitoring", label: "Node Monitor", icon: Server },
     { id: "leaderboard", label: "Leaderboard", icon: BarChart },
-    { id: "export", label: "Result Export", icon: Download },
   ];
 
   return (
@@ -480,10 +518,21 @@ export default function AdminDashboard() {
               className="space-y-6"
             >
               <div className="p-6 bg-black/50 border border-zinc-800 relative backdrop-blur-md">
-                <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Team Registrations</h2>
-                <p className="text-sm text-zinc-500 font-mono mb-6 pb-6 border-b border-zinc-800">
-                  Live feed of registered teams and their current status.
-                </p>
+                <div className="flex justify-between items-start mb-6 pb-6 border-b border-zinc-800">
+                  <div>
+                    <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Team Registrations</h2>
+                    <p className="text-sm text-zinc-500 font-mono">
+                      Live feed of registered teams and their current status.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => exportToCSV(teams, 'cyberhunt_registrations')}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-green-500 text-zinc-300 hover:text-green-400 font-mono text-xs uppercase tracking-widest transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export to Excel
+                  </button>
+                </div>
 
                 {isLoadingTeams ? (
                   <div className="text-center py-10">
@@ -662,10 +711,21 @@ export default function AdminDashboard() {
           {activeTab === "leaderboard" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="bg-black/50 border border-zinc-800 p-6 relative">
-                <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Global Leaderboard</h2>
-                <p className="text-sm text-zinc-500 font-mono mb-6 pb-6 border-b border-zinc-800">
-                  Live ranking of all participating nodes based on network infiltration status.
-                </p>
+                <div className="flex justify-between items-start mb-6 pb-6 border-b border-zinc-800">
+                  <div>
+                    <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Global Leaderboard</h2>
+                    <p className="text-sm text-zinc-500 font-mono">
+                      Live ranking of all participating nodes based on network infiltration status.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => exportToCSV(teams, 'cyberhunt_leaderboard')}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-green-500 text-zinc-300 hover:text-green-400 font-mono text-xs uppercase tracking-widest transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export to Excel
+                  </button>
+                </div>
 
                 {teams.length === 0 ? (
                   <div className="text-center py-10 text-zinc-500 font-mono text-sm uppercase tracking-widest">
