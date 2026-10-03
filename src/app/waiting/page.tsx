@@ -31,24 +31,44 @@ export default function WaitingRoom() {
   // Poll for Session Status
   useEffect(() => {
     const pollStatus = async () => {
-      // 1. Try local storage FIRST (This guarantees local Admin Dashboard works instantly even if Supabase RLS is blocking)
+      let finalStatus = null;
+      let localStatus = null;
+      let remoteStatus = null;
+
+      // 1. Fetch Local Storage
       const localStates = localStorage.getItem("cyberhunt_session_states");
       if (localStates) {
         const parsed = JSON.parse(localStates);
         if (parsed[currentSession]) {
-          setSessionStatus(parsed[currentSession]);
-          return;
+          localStatus = parsed[currentSession];
         }
       }
 
-      // 2. Fallback to Supabase if local storage is empty (for remote players)
+      // 2. Fetch Supabase (if configured)
       if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
         try {
           const { data, error } = await supabase.from('sessions').select('status').eq('session_number', currentSession).single();
           if (data && !error) {
-            setSessionStatus(data.status);
+            remoteStatus = data.status;
           }
         } catch (err) {}
+      }
+
+      // 3. Smart Merge Strategy
+      if (remoteStatus) {
+        // If Supabase says STANDBY but our local admin dashboard set it to ACTIVE/PAUSED (meaning RLS blocked the DB update)
+        // we trust localStatus for local testing. Otherwise we trust the database.
+        if (remoteStatus === "STANDBY" && localStatus && localStatus !== "STANDBY") {
+          finalStatus = localStatus;
+        } else {
+          finalStatus = remoteStatus;
+        }
+      } else if (localStatus) {
+        finalStatus = localStatus;
+      }
+
+      if (finalStatus) {
+        setSessionStatus(finalStatus as any);
       }
     };
 
