@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Shield, KeyRound, Terminal, Lock, CheckCircle2, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { fetchSessionState } from "@/lib/stateSync";
 
 export default function SessionFourFinale() {
   const router = useRouter();

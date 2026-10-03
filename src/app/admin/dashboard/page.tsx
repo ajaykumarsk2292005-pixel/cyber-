@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { 
   Shield, Users, LogOut, Activity, BarChart, Server, 
   Settings, Image as ImageIcon, Video, FileText, Download, Play, Square, XOctagon,
-  Edit2, Save, X
+  Edit2, Save, X, Lock
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
