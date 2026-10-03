@@ -33,19 +33,21 @@ export default function SessionOne() {
 
   useEffect(() => {
     const pollStatus = async () => {
+      const localStates = localStorage.getItem("cyberhunt_session_states");
+      if (localStates) {
+        const parsed = JSON.parse(localStates);
+        if (parsed[1]) {
+          setSessionStatus(parsed[1]);
+          return;
+        }
+      }
       if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
         try {
           const { data, error } = await supabase.from('sessions').select('status').eq('session_number', 1).single();
           if (data && !error) {
             setSessionStatus(data.status);
-            return;
           }
         } catch (err) {}
-      }
-      const localStates = localStorage.getItem("cyberhunt_session_states");
-      if (localStates) {
-        const parsed = JSON.parse(localStates);
-        if (parsed[1]) setSessionStatus(parsed[1]);
       }
     };
     pollStatus();

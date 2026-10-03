@@ -20,6 +20,16 @@ const data = [
   { time: "20:00", score: 90 },
 ];
 
+interface Team {
+  id?: number;
+  team_alias: string;
+  college: string;
+  node_alpha: string;
+  node_beta: string;
+  status: string;
+  created_at?: string;
+}
+
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("event-control");
   const [sessionStates, setSessionStates] = useState<Record<number, "STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">>({
@@ -38,9 +48,9 @@ export default function AdminDashboard() {
         try {
           const { data, error } = await supabase.from('sessions').select('*');
           if (data && !error) {
-            const states: any = {};
-            data.forEach((s: any) => { states[s.session_number] = s.status; });
-            setSessionStates(prev => ({ ...prev, ...states }));
+            const states: Record<number, string> = {};
+            data.forEach((s: { session_number: number, status: string }) => { states[s.session_number] = s.status; });
+            setSessionStates(prev => ({ ...prev, ...(states as unknown as Record<number, "STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">) }));
             // Sync to local storage for local fallback
             localStorage.setItem("cyberhunt_session_states", JSON.stringify({ ...sessionStates, ...states }));
             return;
@@ -81,7 +91,7 @@ export default function AdminDashboard() {
   const [editingPasskey, setEditingPasskey] = useState<number | null>(null);
   const [tempPasskey, setTempPasskey] = useState("");
 
-  const [teams, setTeams] = useState<any[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 
   useEffect(() => {

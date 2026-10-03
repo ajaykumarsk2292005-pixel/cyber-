@@ -77,9 +77,6 @@ export default function Home() {
           transition={{ delay: 1 }}
           className="flex gap-4 items-center"
         >
-          <Link href="/admin/login" className="px-5 py-2 text-xs font-mono tracking-widest text-zinc-400 hover:text-white transition-all duration-500 uppercase hover:bg-white/5 rounded-sm border border-transparent hover:border-zinc-700">
-            Admin
-          </Link>
           <Link href="/register" className="px-5 py-2 text-xs font-mono tracking-widest bg-zinc-200 text-black hover:bg-white transition-all duration-500 uppercase hover:shadow-[0_0_20px_rgba(255,255,255,0.4)] rounded-sm">
             Registration
           </Link>

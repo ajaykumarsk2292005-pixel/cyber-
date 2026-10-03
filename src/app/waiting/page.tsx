@@ -31,24 +31,24 @@ export default function WaitingRoom() {
   // Poll for Session Status
   useEffect(() => {
     const pollStatus = async () => {
-      // Try Supabase first
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-        try {
-          const { data, error } = await supabase.from('sessions').select('status').eq('session_number', currentSession).single();
-          if (data && !error) {
-            setSessionStatus(data.status);
-            return;
-          }
-        } catch (err) {}
-      }
-      
-      // Fallback to local storage (for local testing without Supabase)
+      // 1. Try local storage FIRST (This guarantees local Admin Dashboard works instantly even if Supabase RLS is blocking)
       const localStates = localStorage.getItem("cyberhunt_session_states");
       if (localStates) {
         const parsed = JSON.parse(localStates);
         if (parsed[currentSession]) {
           setSessionStatus(parsed[currentSession]);
+          return;
         }
+      }
+
+      // 2. Fallback to Supabase if local storage is empty (for remote players)
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
+        try {
+          const { data, error } = await supabase.from('sessions').select('status').eq('session_number', currentSession).single();
+          if (data && !error) {
+            setSessionStatus(data.status);
+          }
+        } catch (err) {}
       }
     };
 
