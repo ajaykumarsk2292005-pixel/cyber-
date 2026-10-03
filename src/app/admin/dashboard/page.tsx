@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { QuestionManager } from "@/components/QuestionManager";
 
 const data = [
   { time: "00:00", score: 20 },
@@ -97,6 +98,55 @@ export default function AdminDashboard() {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
+  const [editingTeamData, setEditingTeamData] = useState<Team | null>(null);
+
+  const handleDeleteTeam = async (index: number) => {
+    if (!confirm("Are you sure you want to delete this team?")) return;
+    const teamToDelete = teams[index];
+    
+    // Update local state
+    const newTeams = [...teams];
+    newTeams.splice(index, 1);
+    setTeams(newTeams);
+    
+    // Update local storage (reverse the reverse we do on load)
+    const localTeams = JSON.parse(localStorage.getItem("cyberhunt_teams") || "[]");
+    const updatedLocal = localTeams.filter((t: any) => t.teamAlias !== teamToDelete.teamAlias && t.team_alias !== teamToDelete.team_alias);
+    localStorage.setItem("cyberhunt_teams", JSON.stringify(updatedLocal));
+    
+    // Update Supabase if connected
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
+      try {
+        await supabase.from('teams').delete().eq('team_alias', teamToDelete.team_alias || teamToDelete.teamAlias);
+      } catch(e) {}
+    }
+  };
+
+  const handleSaveTeam = async (index: number) => {
+    if (!editingTeamData) return;
+    
+    // Update local state
+    const newTeams = [...teams];
+    newTeams[index] = editingTeamData;
+    setTeams(newTeams);
+    setEditingTeamIndex(null);
+    
+    // Update local storage
+    localStorage.setItem("cyberhunt_teams", JSON.stringify([...newTeams].reverse()));
+    
+    // Update Supabase if connected
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
+      try {
+        await supabase.from('teams').update({
+          college: editingTeamData.college,
+          node_alpha: editingTeamData.node_alpha || editingTeamData.nodeAlpha,
+          node_beta: editingTeamData.node_beta || editingTeamData.nodeBeta,
+          status: editingTeamData.status
+        }).eq('team_alias', editingTeamData.team_alias || editingTeamData.teamAlias);
+      } catch(e) {}
+    }
+  };
 
   useEffect(() => {
     // Load custom passkeys if any
@@ -618,20 +668,59 @@ export default function AdminDashboard() {
                           <th className="p-4 font-normal">Node Alpha</th>
                           <th className="p-4 font-normal">Node Beta</th>
                           <th className="p-4 font-normal">Status</th>
+                          <th className="p-4 font-normal text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-800/50">
                         {teams.map((team, idx) => (
                           <tr key={idx} className="hover:bg-zinc-900/30 transition-colors">
-                            <td className="p-4 font-bold text-zinc-200">{team.teamAlias || team.team_alias}</td>
-                            <td className="p-4 text-zinc-400">{team.college}</td>
-                            <td className="p-4 text-zinc-500 text-xs">{team.nodeAlpha || team.node_alpha || "-"}</td>
-                            <td className="p-4 text-zinc-500 text-xs">{team.nodeBeta || team.node_beta || "-"}</td>
-                            <td className="p-4">
-                              <span className="px-2 py-1 bg-green-950/30 border border-green-500/50 text-green-400 text-[10px] uppercase tracking-widest">
-                                {team.status || "WAITING"}
-                              </span>
-                            </td>
+                            {editingTeamIndex === idx ? (
+                              <>
+                                <td className="p-4 font-bold text-zinc-200">{team.teamAlias || team.team_alias}</td>
+                                <td className="p-4">
+                                  <input type="text" value={editingTeamData?.college} onChange={e => setEditingTeamData({...editingTeamData!, college: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 px-2 py-1 outline-none text-xs text-white" />
+                                </td>
+                                <td className="p-4">
+                                  <input type="text" value={editingTeamData?.nodeAlpha || editingTeamData?.node_alpha} onChange={e => setEditingTeamData({...editingTeamData!, nodeAlpha: e.target.value, node_alpha: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 px-2 py-1 outline-none text-xs text-white" />
+                                </td>
+                                <td className="p-4">
+                                  <input type="text" value={editingTeamData?.nodeBeta || editingTeamData?.node_beta || ""} onChange={e => setEditingTeamData({...editingTeamData!, nodeBeta: e.target.value, node_beta: e.target.value})} className="w-full bg-zinc-900 border border-zinc-700 px-2 py-1 outline-none text-xs text-white" />
+                                </td>
+                                <td className="p-4">
+                                  <select value={editingTeamData?.status} onChange={e => setEditingTeamData({...editingTeamData!, status: e.target.value})} className="bg-zinc-900 border border-zinc-700 px-2 py-1 outline-none text-xs text-white">
+                                    <option value="WAITING">WAITING</option>
+                                    <option value="ACTIVE">ACTIVE</option>
+                                    <option value="DISQUALIFIED">DISQUALIFIED</option>
+                                    <option value="COMPLETED">COMPLETED</option>
+                                  </select>
+                                </td>
+                                <td className="p-4 text-right space-x-2">
+                                  <button onClick={() => handleSaveTeam(idx)} className="text-green-500 hover:text-green-400 text-xs uppercase tracking-widest font-bold">Save</button>
+                                  <button onClick={() => setEditingTeamIndex(null)} className="text-zinc-500 hover:text-zinc-400 text-xs uppercase tracking-widest font-bold">Cancel</button>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="p-4 font-bold text-zinc-200">{team.teamAlias || team.team_alias}</td>
+                                <td className="p-4 text-zinc-400">{team.college}</td>
+                                <td className="p-4 text-zinc-500 text-xs">{team.nodeAlpha || team.node_alpha || "-"}</td>
+                                <td className="p-4 text-zinc-500 text-xs">{team.nodeBeta || team.node_beta || "-"}</td>
+                                <td className="p-4">
+                                  <span className={`px-2 py-1 bg-opacity-30 border text-[10px] uppercase tracking-widest ${
+                                    team.status === "WAITING" ? "bg-zinc-800 border-zinc-600 text-zinc-400" :
+                                    team.status === "ACTIVE" ? "bg-green-950 border-green-500/50 text-green-400" :
+                                    team.status === "DISQUALIFIED" ? "bg-red-950 border-red-500/50 text-red-400" :
+                                    "bg-blue-950 border-blue-500/50 text-blue-400"
+                                  }`}>
+                                    {team.status || "WAITING"}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-right space-x-4">
+                                  <button onClick={() => { setEditingTeamIndex(idx); setEditingTeamData(team); }} className="text-blue-500 hover:text-blue-400 text-xs uppercase tracking-widest font-bold">Edit</button>
+                                  <button onClick={() => handleDeleteTeam(idx)} className="text-red-500 hover:text-red-400 text-xs uppercase tracking-widest font-bold">Delete</button>
+                                </td>
+                              </>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -639,6 +728,25 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+
+          {/* QUESTION MANAGEMENT TABS */}
+          {activeTab === "questions" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <QuestionManager sessionNumber={1} />
+            </motion.div>
+          )}
+
+          {activeTab === "image-challenge" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <QuestionManager sessionNumber={2} />
+            </motion.div>
+          )}
+
+          {activeTab === "video-challenge" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <QuestionManager sessionNumber={3} />
             </motion.div>
           )}
 

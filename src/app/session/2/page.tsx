@@ -6,21 +6,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-
-// Placeholder questions for Season 2 with image clues
-const QUESTIONS = [
-  { id: 1, image: "https://placehold.co/800x400/111/555?text=CLUE+1:+HIDDEN+IN+PLAIN+SIGHT", text: "Based on the visual clue above, what is the target IP address?", options: ["192.168.1.1", "10.0.0.5", "172.16.0.2", "127.0.0.1"], answer: "10.0.0.5" },
-  { id: 2, image: "https://placehold.co/800x400/111/555?text=CLUE+2:+HEX+DUMP", text: "Analyze the hex dump. What file format is this?", options: ["ELF", "PE", "Mach-O", "COM"], answer: "PE" },
-  { id: 3, image: "https://placehold.co/800x400/111/555?text=CLUE+3:+NETWORK+GRAPH", text: "Which node is acting as the command and control server?", options: ["Node Alpha", "Node Omega", "Node 0x99", "Node Beta"], answer: "Node 0x99" },
-  { id: 4, image: "https://placehold.co/800x400/111/555?text=CLUE+4:+ENCRYPTED+PAYLOAD", text: "What encryption algorithm was likely used here?", options: ["AES-256", "RSA", "Base64", "RC4"], answer: "AES-256" },
-  { id: 5, image: "https://placehold.co/800x400/111/555?text=CLUE+5:+SYSTEM+LOGS", text: "Identify the compromised user account from the logs.", options: ["root", "admin", "guest", "service_acct"], answer: "service_acct" },
-  { id: 6, image: "https://placehold.co/800x400/111/555?text=CLUE+6:+STEGANOGRAPHY", text: "What is hidden inside the least significant bits?", options: ["A URL", "A password hash", "Coordinates", "A private key"], answer: "A URL" },
-  { id: 7, image: "https://placehold.co/800x400/111/555?text=CLUE+7:+ARCHITECTURE", text: "What cloud service is being exploited in this diagram?", options: ["S3 Bucket", "EC2 Instance", "Lambda", "RDS"], answer: "S3 Bucket" },
-];
+import { getQuestions, Question } from "@/lib/questions";
 
 export default function SessionTwo() {
   const router = useRouter();
   
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   
@@ -75,18 +66,22 @@ export default function SessionTwo() {
       }
     };
     pollStatus();
+    
+    // Load questions dynamically
+    setQuestions(getQuestions(2));
+
     const interval = setInterval(pollStatus, 2000);
-    const handleStorage = () => pollStatus();
+    const handleStorage = () => { pollStatus(); setQuestions(getQuestions(2)); };
     window.addEventListener("storage", handleStorage);
     return () => { clearInterval(interval); window.removeEventListener("storage", handleStorage); };
   }, []);
 
-  const currentQ = QUESTIONS[currentIndex];
+  const currentQ = questions[currentIndex];
 
   const handleOptionSelect = (option: string, index: number) => {
     setSubmittedAnswers(prev => [...prev, option]);
     
-    if (currentIndex < QUESTIONS.length - 1) {
+    if (currentIndex < questions.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsCompleted(true);
@@ -154,7 +149,7 @@ export default function SessionTwo() {
         <AnimatePresence mode="wait">
           
           {/* QUESTION PHASE */}
-          {!isCompleted && (
+          {!isCompleted && currentQ && (
             <motion.div
               key={`question-${currentIndex}`}
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -177,11 +172,15 @@ export default function SessionTwo() {
                 
                 <div className="flex-1 relative bg-zinc-950 flex items-center justify-center overflow-hidden border border-zinc-900 group">
                   {/* Using standard img tag to avoid next/image domain restrictions for placehold.co */}
-                  <img 
-                    src={customImageUrl || currentQ.image} 
-                    alt={`Clue ${currentIndex + 1}`}
-                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-700"
-                  />
+                  {currentQ?.mediaUrl ? (
+                    <img 
+                      src={customImageUrl || currentQ.mediaUrl} 
+                      alt={`Clue ${currentIndex + 1}`}
+                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-700"
+                    />
+                  ) : (
+                    <div className="text-zinc-500 font-mono text-xs uppercase tracking-widest h-full w-full flex items-center justify-center">No Media</div>
+                  )}
                   {/* Scanline overlay for aesthetic */}
                   <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] z-10 mix-blend-overlay" />
                 </div>

@@ -5,24 +5,12 @@ import { Shield, Terminal, ArrowRight, Lock, CheckCircle2, AlertTriangle, Pause 
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-
-// Placeholder questions - can be updated later to include images/videos
-const QUESTIONS = [
-  { id: 1, text: "What is the standard port for HTTPS communication?", options: ["Port 21", "Port 80", "Port 443", "Port 8080"], answer: "Port 443" },
-  { id: 2, text: "Decode this string: YWRtaW4=", options: ["root", "admin", "password", "system"], answer: "admin" },
-  { id: 3, text: "What does XSS stand for?", options: ["Cross Site Scripting", "XML System Security", "Cross System Scripting", "Extensible Style Sheets"], answer: "Cross Site Scripting" },
-  { id: 4, text: "What protocol resolves IP addresses to MAC addresses?", options: ["DNS", "DHCP", "ARP", "ICMP"], answer: "ARP" },
-  { id: 5, text: "A widely used 128-bit hash function that is considered cryptographically broken.", options: ["SHA-256", "MD5", "AES", "RSA"], answer: "MD5" },
-  { id: 6, text: "What type of attack involves overwhelming a target server with traffic?", options: ["Phishing", "DDoS", "SQL Injection", "Man in the middle"], answer: "DDoS" },
-  { id: 7, text: "Which widely used tool is known as a network protocol analyzer?", options: ["Nmap", "Wireshark", "Metasploit", "Burp Suite"], answer: "Wireshark" },
-  { id: 8, text: "In Linux, what is the absolute path to the file containing hashed user passwords?", options: ["/etc/passwd", "/etc/shadow", "/var/log/auth", "/root/passwords"], answer: "/etc/shadow" },
-  { id: 9, text: "What is the practice of hiding a secret message inside an ordinary file (like an image)?", options: ["Cryptography", "Steganography", "Obfuscation", "Hashing"], answer: "Steganography" },
-  { id: 10, text: "What command line tool is used to discover the path a packet takes to a destination network?", options: ["ping", "netstat", "ifconfig", "traceroute"], answer: "traceroute" },
-];
+import { getQuestions, Question } from "@/lib/questions";
 
 export default function SessionOne() {
   const router = useRouter();
   
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   
@@ -69,22 +57,26 @@ export default function SessionOne() {
       }
     };
     pollStatus();
+    
+    // Load questions dynamically
+    setQuestions(getQuestions(1));
+
     const interval = setInterval(pollStatus, 2000);
-    const handleStorage = () => pollStatus();
+    const handleStorage = () => { pollStatus(); setQuestions(getQuestions(1)); };
     window.addEventListener("storage", handleStorage);
     return () => { clearInterval(interval); window.removeEventListener("storage", handleStorage); };
   }, []);
 
-  const currentQ = QUESTIONS[currentIndex];
+  const currentQ = questions[currentIndex];
 
   const handleOptionSelect = (option: string, index: number) => {
     setSubmittedAnswers(prev => [...prev, option]);
     
-    if (currentIndex < QUESTIONS.length - 1) {
+    if (currentIndex < questions.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsCompleted(true);
-      // You could evaluate the score here by comparing submittedAnswers with QUESTIONS.answer
+      // You could evaluate the score here by comparing submittedAnswers with questions.answer
     }
   };
 
@@ -147,7 +139,7 @@ export default function SessionOne() {
         <AnimatePresence mode="wait">
           
           {/* QUESTION PHASE */}
-          {!isCompleted && (
+          {!isCompleted && currentQ && (
             <motion.div
               key={`question-${currentIndex}`} // Force re-render animation on change
               initial={{ opacity: 0, scale: 0.95, y: 10 }}

@@ -6,22 +6,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-
-// Placeholder questions for Season 3 with video clues
-const QUESTIONS = [
-  { id: 1, video: "https://www.w3schools.com/html/mov_bbb.mp4", text: "Watch the video footage. What port was open on the terminal screen?", options: ["21", "22", "80", "443"], answer: "22" },
-  { id: 2, video: "https://www.w3schools.com/html/mov_bbb.mp4", text: "At 0:05, a command is executed. What was the command?", options: ["nmap -sV", "ping 8.8.8.8", "cat /etc/passwd", "ssh root@10.0.0.1"], answer: "nmap -sV" },
-  { id: 3, video: "https://www.w3schools.com/html/mov_bbb.mp4", text: "Identify the malware signature shown in the sandbox environment.", options: ["WannaCry", "Stuxnet", "Emotet", "Mirai"], answer: "WannaCry" },
-  { id: 4, video: "https://www.w3schools.com/html/mov_bbb.mp4", text: "Which user account was compromised during the brute force attack?", options: ["admin", "sysadmin", "guest", "ubuntu"], answer: "admin" },
-  { id: 5, video: "https://www.w3schools.com/html/mov_bbb.mp4", text: "What is the physical location (GPS coordinates) flashed on the monitor?", options: ["37.7749° N", "51.5074° N", "40.7128° N", "34.0522° N"], answer: "51.5074° N" },
-  { id: 6, video: "https://www.w3schools.com/html/mov_bbb.mp4", text: "What encryption key was intercepted in the packet capture?", options: ["0xDEADBEEF", "0xCAFEBABE", "0x8BADF00D", "0x1337C0DE"], answer: "0xDEADBEEF" },
-  { id: 7, video: "https://www.w3schools.com/html/mov_bbb.mp4", text: "What was the name of the vulnerable service running?", options: ["vsftpd 2.3.4", "Apache 2.4.49", "ProFTPD 1.3.5", "Samba 3.5.0"], answer: "vsftpd 2.3.4" },
-  { id: 8, video: "https://www.w3schools.com/html/mov_bbb.mp4", text: "Identify the final flag hidden in the audio spectrogram.", options: ["FLAG{h1dd3n_w4v}", "FLAG{sp3ctr0gr4m}", "FLAG{cYb3r_hunt}", "FLAG{s0und_bYt3s}"], answer: "FLAG{h1dd3n_w4v}" },
-];
+import { getQuestions, Question } from "@/lib/questions";
 
 export default function SessionThree() {
   const router = useRouter();
   
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
@@ -77,19 +67,22 @@ export default function SessionThree() {
       }
     };
     pollStatus();
+    
+    // Load questions dynamically
+    setQuestions(getQuestions(3));
+
     const interval = setInterval(pollStatus, 2000);
-    const handleStorage = () => pollStatus();
+    const handleStorage = () => { pollStatus(); setQuestions(getQuestions(3)); };
     window.addEventListener("storage", handleStorage);
     return () => { clearInterval(interval); window.removeEventListener("storage", handleStorage); };
   }, []);
 
-  const currentQ = QUESTIONS[currentIndex];
+  const currentQ = questions[currentIndex];
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleOptionSelect = (option: string, index: number) => {
     setSubmittedAnswers(prev => [...prev, option]);
     
-    if (currentIndex < QUESTIONS.length - 1) {
+    if (currentIndex < questions.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsCompleted(true);
@@ -157,7 +150,7 @@ export default function SessionThree() {
         <AnimatePresence mode="wait">
           
           {/* QUESTION PHASE */}
-          {!isCompleted && (
+          {!isCompleted && currentQ && (
             <motion.div
               key={`question-${currentIndex}`}
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -179,14 +172,18 @@ export default function SessionThree() {
                 </div>
                 
                 <div className="flex-1 relative bg-zinc-950 flex items-center justify-center overflow-hidden border border-zinc-900 group">
-                  <video 
-                    src={customVideoUrl || currentQ.video} 
-                    controls
-                    className="w-full h-full object-contain opacity-90 transition-opacity duration-300 relative z-20"
-                    poster={`https://placehold.co/800x450/111/333?text=LOADING+SURVEILLANCE+FEED...`}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
+                  {currentQ?.mediaUrl ? (
+                    <video 
+                      src={customVideoUrl || currentQ.mediaUrl} 
+                      controls
+                      className="w-full h-full object-contain opacity-90 transition-opacity duration-300 relative z-20"
+                      poster={`https://placehold.co/800x450/111/333?text=LOADING+SURVEILLANCE+FEED...`}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <div className="text-zinc-500 font-mono text-xs uppercase tracking-widest h-full w-full flex items-center justify-center min-h-[300px]">No Media</div>
+                  )}
                   {/* Subtle Scanline overlay on top of video container, below video controls if possible. Since video controls overlay everything, this sits below the video but adds a tint */}
                   <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] z-10 mix-blend-overlay" />
                 </div>
