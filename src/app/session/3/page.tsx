@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
+import { fetchSessionState } from "@/lib/stateSync";
 
 export default function SessionThree() {
   const router = useRouter();
@@ -44,12 +45,7 @@ export default function SessionThree() {
       }
 
       if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-        try {
-          const { data, error } = await supabase.from('sessions').select('status').eq('session_number', 3).single();
-          if (data && !error) {
-            remoteStatus = data.status;
-          }
-        } catch (err) {}
+        remoteStatus = await fetchSessionState(3);
       }
 
       if (remoteStatus) {

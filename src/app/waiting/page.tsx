@@ -5,6 +5,7 @@ import { Lock, Unlock, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { fetchSessionState } from "@/lib/stateSync";
 
 export default function WaitingRoom() {
   const router = useRouter();
@@ -44,15 +45,8 @@ export default function WaitingRoom() {
         }
       }
 
-      // 2. Fetch Supabase (if configured)
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-        try {
-          const { data, error } = await supabase.from('sessions').select('status').eq('session_number', currentSession).single();
-          if (data && !error) {
-            remoteStatus = data.status;
-          }
-        } catch (err) {}
-      }
+      // 2. Fetch Supabase (using our stateSync bypass)
+      remoteStatus = await fetchSessionState(currentSession);
 
       // 3. Smart Merge Strategy
       if (remoteStatus) {

@@ -11,6 +11,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { QuestionManager } from "@/components/QuestionManager";
+import { broadcastSessionState } from "@/lib/stateSync";
 
 const data = [
   { time: "00:00", score: 20 },
@@ -80,11 +81,7 @@ export default function AdminDashboard() {
     localStorage.setItem("cyberhunt_session_states", JSON.stringify(newStates));
     
     // Save to Supabase if configured (fire and forget)
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-      try {
-        await supabase.from('sessions').update({ status }).eq('session_number', session);
-      } catch (err) {}
-    }
+    await broadcastSessionState(session, status);
   };
 
   const [passkeys, setPasskeys] = useState({
