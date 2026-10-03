@@ -398,8 +398,23 @@ export default function AdminDashboard() {
               className="space-y-6"
             >
               <div className="p-6 bg-black/50 border border-zinc-800 relative backdrop-blur-md">
-                <h2 className="text-sm font-mono uppercase tracking-widest text-zinc-100 mb-2">Session Master Override</h2>
-                <p className="text-xs font-mono text-zinc-500 mb-8">Deploy specific sessions to all active nodes. This action is instantaneous globally.</p>
+                <div className="flex justify-between items-start mb-8 pb-6 border-b border-zinc-800">
+                  <div>
+                    <h2 className="text-sm font-mono uppercase tracking-widest text-zinc-100 mb-2">Session Master Override</h2>
+                    <p className="text-xs font-mono text-zinc-500">Deploy specific sessions to all active nodes. This action is instantaneous globally.</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (confirm('Are you sure you want to reset all sessions to STANDBY? This will restart the entire event.')) {
+                        [1, 2, 3, 4, 5].forEach(session => handleUpdateSessionState(session, "STANDBY"));
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-red-900/50 hover:border-red-500 hover:bg-red-950/20 text-red-500/80 hover:text-red-400 font-mono text-xs uppercase tracking-widest transition-all"
+                  >
+                    <XOctagon className="w-4 h-4" />
+                    Reset Event
+                  </button>
+                </div>
 
                 <div className="grid grid-cols-1 gap-4">
                   {[1, 2, 3, 4].map((session) => {
