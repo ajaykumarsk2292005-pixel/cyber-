@@ -53,8 +53,7 @@ CREATE POLICY "Allow team read" ON public.teams FOR SELECT TO public USING (true
 -- Allow everyone to read sessions (so they know if it's active)
 CREATE POLICY "Allow public read sessions" ON public.sessions FOR SELECT TO public USING (true);
 
--- Admin policies (requires auth)
--- (You would create specific policies for authenticated admins here)
-CREATE POLICY "Admin full access teams" ON public.teams FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin full access sessions" ON public.sessions FOR ALL TO authenticated USING (true);
-CREATE POLICY "Admin full access answers" ON public.answers FOR ALL TO authenticated USING (true);
+-- Admin policies (Simplified for Hackathon: allow public writes since auth is handled locally via PIN)
+CREATE POLICY "Admin full access teams" ON public.teams FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Admin full access sessions" ON public.sessions FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Admin full access answers" ON public.answers FOR ALL TO public USING (true) WITH CHECK (true);
