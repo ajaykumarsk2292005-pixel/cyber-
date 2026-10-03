@@ -120,60 +120,91 @@ export default function SessionFourFinale() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden" style={{ perspective: '1500px' }}>
+      <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden" style={{ perspective: '1200px' }}>
         
-        {/* The Suitcase */}
+        {/* The Entire 3D Scene */}
         <motion.div 
-          initial={{ y: 200, opacity: 0, rotateX: 20 }}
-          animate={{ y: 0, opacity: 1, rotateX: 10 }}
+          initial={{ y: 200, opacity: 0, rotateX: 55, rotateZ: 0 }}
+          animate={{ y: 0, opacity: 1, rotateX: 60, rotateZ: -10 }}
           transition={{ duration: 1.5, ease: "easeOut" }}
-          className="relative w-64 h-48 sm:w-80 sm:h-56 z-20"
+          className="relative w-64 h-48 sm:w-80 sm:h-56 z-20 flex items-center justify-center"
           style={{ transformStyle: 'preserve-3d' }}
         >
-          {/* Bottom Half of Suitcase */}
-          <div className="absolute inset-0 bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-2xl flex items-center justify-center z-10" style={{ transform: 'translateZ(-10px)' }}>
+          {/* BOTTOM HALF OF SUITCASE (3D BOX) */}
+          <div className="absolute inset-0 z-10" style={{ transformStyle: 'preserve-3d', transform: 'translateZ(-20px)' }}>
+            {/* Base */}
+            <div className="absolute inset-0 bg-zinc-900 border-2 border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.8)]" style={{ transform: 'translateZ(-20px)' }}></div>
+            {/* Inner floor (where tesseract rests) */}
+            <div className="absolute inset-0 bg-zinc-950 border border-zinc-800" style={{ transform: 'translateZ(19px)' }}></div>
             
-            {/* The Tesseract */}
-            <motion.div
-              initial={{ y: 0, scale: 0.5, opacity: 0 }}
-              animate={{ 
-                y: [0, -100, -200, -250], 
-                scale: [0.5, 1, 2, 50],
-                rotateX: [0, 180, 360, 720],
-                rotateY: [0, 180, 360, 720],
-                opacity: [0, 1, 1, 1],
-                filter: ["brightness(1)", "brightness(2)", "brightness(5)", "brightness(20)"]
-              }}
-              transition={{ 
-                duration: 6, 
-                times: [0, 0.4, 0.8, 1], 
-                ease: "easeInOut",
-                delay: 2 // Wait for suitcase to open
-              }}
-              onAnimationComplete={() => router.push('/leaderboard-wait')}
-              className="absolute z-20 w-16 h-16 bg-blue-500/80 border-2 border-cyan-300 shadow-[0_0_50px_rgba(59,130,246,1)]"
-              style={{ transformStyle: 'preserve-3d' }}
-            >
-              {/* Inner glowing core of tesseract */}
-              <div className="absolute inset-2 bg-white/50 border border-white shadow-[0_0_20px_#fff] animate-pulse"></div>
-            </motion.div>
-
+            {/* Front Wall */}
+            <div className="absolute bottom-0 left-0 w-full h-[40px] bg-zinc-800 border border-zinc-700 origin-bottom" style={{ transform: 'translateZ(-20px) rotateX(-90deg)' }}></div>
+            {/* Back Wall */}
+            <div className="absolute top-0 left-0 w-full h-[40px] bg-zinc-800 border border-zinc-700 origin-top" style={{ transform: 'translateZ(-20px) rotateX(90deg)' }}></div>
+            {/* Left Wall */}
+            <div className="absolute top-0 left-0 w-[40px] h-full bg-zinc-800 border border-zinc-700 origin-left" style={{ transform: 'translateZ(-20px) rotateY(90deg)' }}></div>
+            {/* Right Wall */}
+            <div className="absolute top-0 right-0 w-[40px] h-full bg-zinc-800 border border-zinc-700 origin-right" style={{ transform: 'translateZ(-20px) rotateY(-90deg)' }}></div>
           </div>
 
-          {/* Top Half of Suitcase (Lid) */}
+          {/* THE TESSERACT (TRUE 3D CSS CUBE) */}
+          <motion.div
+            initial={{ y: 0, scale: 0.5, opacity: 0 }}
+            animate={{ 
+              y: [0, -100, -200, -250], 
+              scale: [0.5, 1, 2, 50],
+              rotateX: [0, 180, 360, 720],
+              rotateY: [0, 180, 360, 720],
+              rotateZ: [0, 90, 180, 360],
+              opacity: [0, 1, 1, 1],
+              filter: ["brightness(1)", "brightness(2)", "brightness(5)", "brightness(20)"]
+            }}
+            transition={{ 
+              duration: 6, 
+              times: [0, 0.4, 0.8, 1], 
+              ease: "easeInOut",
+              delay: 2 
+            }}
+            onAnimationComplete={() => router.push('/leaderboard-wait')}
+            className="absolute z-30 w-16 h-16"
+            style={{ transformStyle: 'preserve-3d', transform: 'translateZ(20px)' }}
+          >
+            {/* 6 Faces of the Cube */}
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateZ(32px)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateZ(-32px) rotateY(180deg)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateX(32px) rotateY(90deg)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateX(-32px) rotateY(-90deg)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateY(-32px) rotateX(90deg)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateY(32px) rotateX(-90deg)' }}></div>
+            
+            {/* Inner glowing core */}
+            <div className="absolute inset-4 bg-white/90 shadow-[0_0_40px_#fff]" style={{ transform: 'translateZ(0px)' }}></div>
+          </motion.div>
+
+          {/* TOP HALF OF SUITCASE (LID) */}
           <motion.div
             initial={{ rotateX: 0 }}
-            animate={{ rotateX: 115 }}
+            animate={{ rotateX: 130 }}
             transition={{ duration: 2, delay: 1, ease: "easeInOut" }}
-            className="absolute inset-0 bg-zinc-700 border-2 border-zinc-600 rounded-lg origin-bottom z-30 flex items-start justify-center"
-            style={{ backfaceVisibility: 'hidden' }}
+            className="absolute inset-0 origin-bottom z-40"
+            style={{ transformStyle: 'preserve-3d', transform: 'translateZ(20px)' }}
           >
-            {/* Suitcase Handle */}
-            <div className="w-16 h-4 border-2 border-zinc-500 rounded-t-md -mt-4 bg-zinc-800"></div>
+            {/* Outer Lid Face */}
+            <div className="absolute inset-0 bg-zinc-800 border-2 border-zinc-700 flex justify-center items-start" style={{ transform: 'translateZ(20px)' }}>
+              {/* Handle */}
+              <div className="w-16 h-4 border-2 border-zinc-500 rounded-t-md -mt-4 bg-zinc-900 relative">
+                <div className="absolute -left-3 top-0 w-2 h-4 bg-zinc-500"></div>
+                <div className="absolute -right-3 top-0 w-2 h-4 bg-zinc-500"></div>
+              </div>
+            </div>
+            {/* Inner Lid Face */}
+            <div className="absolute inset-0 bg-zinc-900 border-2 border-zinc-700" style={{ transform: 'translateZ(0px)' }}></div>
             
-            {/* Suitcase Latches */}
-            <div className="absolute top-0 left-8 w-4 h-6 bg-zinc-900 border border-zinc-500 -mt-2 rounded-sm"></div>
-            <div className="absolute top-0 right-8 w-4 h-6 bg-zinc-900 border border-zinc-500 -mt-2 rounded-sm"></div>
+            {/* Lid Walls for depth */}
+            <div className="absolute bottom-0 left-0 w-full h-[20px] bg-zinc-700 border border-zinc-600 origin-bottom" style={{ transform: 'rotateX(-90deg)' }}></div>
+            <div className="absolute top-0 left-0 w-full h-[20px] bg-zinc-700 border border-zinc-600 origin-top" style={{ transform: 'rotateX(90deg)' }}></div>
+            <div className="absolute top-0 left-0 w-[20px] h-full bg-zinc-700 border border-zinc-600 origin-left" style={{ transform: 'rotateY(90deg)' }}></div>
+            <div className="absolute top-0 right-0 w-[20px] h-full bg-zinc-700 border border-zinc-600 origin-right" style={{ transform: 'rotateY(-90deg)' }}></div>
           </motion.div>
         </motion.div>
 
@@ -190,7 +221,7 @@ export default function SessionFourFinale() {
             initial={{ opacity: 0 }}
             animate={{ opacity: [0, 1, 0] }}
             transition={{ duration: 2, delay: 0.5 }}
-            className="text-green-500 font-mono text-sm tracking-widest uppercase"
+            className="text-green-500 font-mono text-sm tracking-widest uppercase shadow-[0_0_10px_#0f0]"
           >
             Access Granted. Opening Secure Container...
           </motion.p>
