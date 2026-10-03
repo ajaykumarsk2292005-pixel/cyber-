@@ -123,7 +123,7 @@ export default function Register() {
 
                       <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="space-y-2">
                         <label className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                          <UserPlus className="w-3 h-3" /> Name 1 (Captain)
+                          <UserPlus className="w-3 h-3" /> Participant 1 Name (Captain)
                         </label>
                         <input 
                           type="text" 
@@ -136,11 +136,10 @@ export default function Register() {
 
                       <motion.div variants={{ hidden: { opacity: 0, x: -20 }, visible: { opacity: 1, x: 0 } }} className="space-y-2">
                         <label className="text-xs font-mono text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                          <UserPlus className="w-3 h-3" /> Name 2 (Teammate)
+                          <UserPlus className="w-3 h-3" /> Participant 2 Name (Optional)
                         </label>
                         <input 
                           type="text" 
-                          required
                           value={formData.nodeBeta}
                           onChange={e => setFormData({...formData, nodeBeta: e.target.value})}
                           className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900/80 focus:border-zinc-500 focus:bg-zinc-900 focus:ring-1 focus:ring-zinc-500 focus:shadow-[0_0_15px_rgba(161,161,170,0.15)] outline-none transition-all text-white placeholder:text-zinc-700 font-mono text-sm"
