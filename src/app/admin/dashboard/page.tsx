@@ -223,6 +223,7 @@ export default function AdminDashboard() {
     { id: "questions", label: "Question Mgmt", icon: FileText },
     { id: "image-challenge", label: "Image Challenge", icon: ImageIcon },
     { id: "video-challenge", label: "Video Challenge", icon: Video },
+    { id: "finale-challenge", label: "Finale Challenge", icon: Lock },
     { id: "monitoring", label: "Node Monitor", icon: Server },
     { id: "leaderboard", label: "Leaderboard", icon: BarChart },
     { id: "export", label: "Result Export", icon: Download },
@@ -569,8 +570,80 @@ export default function AdminDashboard() {
             </motion.div>
           )}
 
+          {activeTab === "finale-challenge" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="bg-black/50 border border-zinc-800 p-6 relative">
+                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-zinc-500"></div>
+                <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Finale Configuration</h2>
+                <p className="text-sm text-zinc-500 font-mono mb-6 pb-6 border-b border-zinc-800">
+                  Manage the final section. These are the hints participants will use to crack the final override.
+                </p>
+                
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-300">Discovered Passkeys (Hints)</h3>
+                  <p className="text-xs text-zinc-500 font-mono mb-4">These are managed in their respective sections but are displayed here for reference.</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="p-4 border border-zinc-800 bg-zinc-900/50 text-center">
+                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Session 1 Passkey</div>
+                      <div className="text-green-400 font-mono font-bold">{passkeys[1] || typeof window !== 'undefined' && localStorage.getItem('passkey_1') || "SEASON2-ACCESS"}</div>
+                    </div>
+                    <div className="p-4 border border-zinc-800 bg-zinc-900/50 text-center">
+                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Session 2 Passkey</div>
+                      <div className="text-green-400 font-mono font-bold">{passkeys[2] || typeof window !== 'undefined' && localStorage.getItem('passkey_2') || "SEASON3-ACCESS"}</div>
+                    </div>
+                    <div className="p-4 border border-zinc-800 bg-zinc-900/50 text-center">
+                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Session 3 Passkey</div>
+                      <div className="text-green-400 font-mono font-bold">{passkeys[3] || typeof window !== 'undefined' && localStorage.getItem('passkey_3') || "SEASON4-ACCESS"}</div>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-zinc-800">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-300 mb-2">Master Override Passkey</h3>
+                    <p className="text-xs text-zinc-500 font-mono mb-4">The ultimate final answer participants must derive from the hints to win the Cyber Hunt.</p>
+                    
+                    <div className="flex items-center gap-4">
+                      {editingPasskey === 4 ? (
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="text" 
+                            value={tempPasskey} 
+                            onChange={(e) => setTempPasskey(e.target.value)}
+                            className="bg-black border border-green-500/50 text-green-400 font-mono text-sm px-3 py-2 outline-none tracking-widest uppercase w-64"
+                            placeholder="FINAL PASSWORD..."
+                          />
+                          <button onClick={() => {
+                            localStorage.setItem("passkey_4", tempPasskey);
+                            setEditingPasskey(null);
+                          }} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors p-2"><Save className="w-4 h-4"/></button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-4">
+                          <div className="px-4 py-2 border border-zinc-800 bg-black min-w-[200px] text-center">
+                            <span className="text-sm font-bold font-mono tracking-widest text-green-400">
+                              {typeof window !== 'undefined' ? (localStorage.getItem("passkey_4") || "OVERRIDE-INIT") : "OVERRIDE-INIT"}
+                            </span>
+                          </div>
+                          <button 
+                            onClick={() => { 
+                              setEditingPasskey(4); 
+                              setTempPasskey(typeof window !== 'undefined' ? (localStorage.getItem("passkey_4") || "OVERRIDE-INIT") : ""); 
+                            }} 
+                            className="bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-colors p-2"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* OTHER TABS PLACEHOLDER */}
-          {activeTab !== "telemetry" && activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "registrations" && (
+          {activeTab !== "telemetry" && activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && (
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}

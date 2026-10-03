@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
-import { fetchSessionState } from "@/lib/stateSync";
-import { Shield, KeyRound, Terminal, Lock } from "lucide-react";
+import { Shield, KeyRound, Terminal, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 
 export default function SessionFourFinale() {
   const router = useRouter();
   const [team, setTeam] = useState<{ teamAlias: string; college: string } | null>(null);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("STANDBY");
+  const [inputValue, setInputValue] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [masterPasskey, setMasterPasskey] = useState("OVERRIDE-INIT");
 
   // We fetch passkeys from localStorage (these are what the participants would have unlocked in previous rounds)
   const [passkeys, setPasskeys] = useState({
@@ -30,12 +32,15 @@ export default function SessionFourFinale() {
     const p1 = localStorage.getItem("passkey_1");
     const p2 = localStorage.getItem("passkey_2");
     const p3 = localStorage.getItem("passkey_3");
+    const p4 = localStorage.getItem("passkey_4");
     
     setPasskeys({
       1: p1 || "SEASON2-ACCESS",
       2: p2 || "SEASON3-ACCESS",
       3: p3 || "SEASON4-ACCESS"
     });
+
+    if (p4) setMasterPasskey(p4);
 
     const pollStatus = async () => {
       let finalStatus = null;
@@ -86,6 +91,50 @@ export default function SessionFourFinale() {
           <h1 className="text-4xl font-bold uppercase tracking-widest mb-4">SYSTEM PAUSED</h1>
           <p className="text-sm tracking-widest">The finale has been temporarily suspended by the administrator.</p>
         </div>
+      </div>
+    );
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputValue.trim().toUpperCase() === masterPasskey.toUpperCase()) {
+      setIsSuccess(true);
+      setErrorMsg("");
+      // Mark as completed
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
+        const saved = localStorage.getItem("cyberhunt_team");
+        if (saved) {
+           const teamData = JSON.parse(saved);
+           // eslint-disable-next-line @typescript-eslint/no-require-imports
+           const { supabase } = require("@/lib/supabase");
+           supabase.from('teams').update({ status: 'COMPLETED' }).eq('team_alias', teamData.teamAlias).then(() => {});
+        }
+      }
+    } else {
+      setErrorMsg("ACCESS DENIED: INCORRECT PASSKEY");
+      setInputValue("");
+    }
+  };
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen bg-black text-green-500 font-mono flex flex-col items-center justify-center p-8 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://cdn.pixabay.com/photo/2016/11/22/19/25/binary-1850125_1280.jpg')] opacity-10 bg-cover bg-center mix-blend-overlay"></div>
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", bounce: 0.5 }}
+          className="text-center relative z-10 p-12 border border-green-500/50 bg-green-950/20 backdrop-blur-sm max-w-2xl"
+        >
+          <CheckCircle2 className="w-24 h-24 mx-auto text-green-400 mb-6 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
+          <h1 className="text-5xl font-bold uppercase tracking-widest mb-6 drop-shadow-[0_0_10px_rgba(74,222,128,0.5)]">System Conquered</h1>
+          <p className="text-lg text-green-300/80 mb-8 leading-relaxed">
+            Congratulations, Team {team?.teamAlias}. You have successfully executed the master override and gained full control of the network.
+          </p>
+          <div className="inline-block border border-green-500/30 bg-black px-8 py-4 text-xs tracking-[0.3em] text-green-500/70">
+            TIME OF BREACH: {new Date().toLocaleTimeString()}
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -172,6 +221,42 @@ export default function SessionFourFinale() {
             <div className="mt-2 text-[10px] text-zinc-600 uppercase tracking-widest">Recovered from S3</div>
           </motion.div>
         </div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="max-w-xl mx-auto mt-12"
+        >
+          <form onSubmit={handleSubmit} className="border border-green-500/50 bg-black p-6 md:p-8 relative">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-black px-4 text-xs font-bold tracking-widest text-green-500 border border-green-500/50">
+              EXECUTE OVERRIDE
+            </div>
+            
+            <div className="space-y-4">
+              <label className="block text-xs uppercase tracking-widest text-zinc-500 text-center">
+                Enter Master Passkey
+              </label>
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                autoFocus
+                className="w-full bg-zinc-900/50 border border-green-900 text-white font-mono text-center text-xl tracking-[0.2em] px-4 py-4 focus:border-green-500 focus:bg-zinc-900 outline-none transition-all uppercase"
+                placeholder="XXXX-XXXX-XXXX"
+              />
+              {errorMsg && (
+                <p className="text-red-500 text-xs font-bold text-center tracking-widest animate-pulse">{errorMsg}</p>
+              )}
+              <button
+                type="submit"
+                className="w-full bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/50 py-4 font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-3"
+              >
+                Submit Override <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
+        </motion.div>
 
       </main>
     </div>
