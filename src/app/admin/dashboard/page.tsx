@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { 
   Shield, Users, LogOut, Activity, BarChart, Server, 
   Settings, Image as ImageIcon, Video, FileText, Download, Play, Square, XOctagon,
-  Edit2, Save, X, Lock
+  Edit2, Save, X, Lock, Unlock
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -404,7 +404,7 @@ export default function AdminDashboard() {
                                 isEnded ? "text-red-400" :
                                 "text-zinc-500"
                               }`}>
-                                {isActive ? "Currently Active" : isPaused ? "System Paused" : isEnded ? "Session Terminated" : "Standby Mode"}
+                                {isActive ? "Currently Active" : isPaused ? "System Locked" : isEnded ? "Session Terminated" : "Standby Mode"}
                               </p>
                             </div>
                           </div>
@@ -419,7 +419,11 @@ export default function AdminDashboard() {
                                 : "bg-black text-white border-zinc-700 hover:border-green-500 hover:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                           >
-                            <Play className="w-3 h-3" /> Start
+                            {isPaused ? (
+                              <><Unlock className="w-3 h-3" /> Unlock</>
+                            ) : (
+                              <><Play className="w-3 h-3" /> Start</>
+                            )}
                           </button>
                           
                           <button
@@ -431,7 +435,7 @@ export default function AdminDashboard() {
                                 : "bg-black text-white border-zinc-700 hover:border-yellow-500 hover:text-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                           >
-                            <Square className="w-3 h-3" /> Pause
+                            <Lock className="w-3 h-3" /> {isPaused ? "Locked" : "Lock"}
                           </button>
 
                           <button

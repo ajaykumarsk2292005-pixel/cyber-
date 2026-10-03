@@ -90,8 +90,8 @@ export default function SessionFourFinale() {
     return (
       <div className="min-h-screen bg-black text-yellow-500 font-mono flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-4xl font-bold uppercase tracking-widest mb-4">SYSTEM PAUSED</h1>
-          <p className="text-sm tracking-widest">The finale has been temporarily suspended by the administrator.</p>
+          <h1 className="text-4xl font-bold uppercase tracking-widest mb-4">SYSTEM LOCKED</h1>
+          <p className="text-sm tracking-widest">The finale has been temporarily locked by the administrator.</p>
         </div>
       </div>
     );

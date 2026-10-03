@@ -103,7 +103,7 @@ export default function SessionOne() {
               {sessionStatus === "PAUSED" ? (
                 <>
                   <Pause className="w-16 h-16 text-yellow-500 mx-auto animate-pulse" />
-                  <h2 className="text-2xl font-bold uppercase tracking-widest text-yellow-500">System Paused</h2>
+                  <h2 className="text-2xl font-bold uppercase tracking-widest text-yellow-500">SYSTEM LOCKED</h2>
                   <p className="text-zinc-400 text-sm">The administrator has paused the session. Please hold your position.</p>
                 </>
               ) : (
