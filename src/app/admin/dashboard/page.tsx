@@ -355,44 +355,45 @@ export default function AdminDashboard() {
                     if (session === 3) duration = "20:00 MIN";
 
                     return (
-                      <div key={session} className={`flex flex-col md:flex-row items-center justify-between p-4 border transition-all ${
+                      <div key={session} className={`flex flex-col p-4 border transition-all ${
                         isActive ? "border-green-500/50 bg-green-500/5" : 
                         isPaused ? "border-yellow-500/50 bg-yellow-500/5" :
                         isEnded ? "border-red-500/20 bg-red-500/5 opacity-50" :
                         "border-zinc-800 bg-zinc-900/50"
                       }`}>
-                        <div className="flex items-center gap-4 w-full md:w-auto mb-4 md:mb-0">
-                          <div className={`w-10 h-10 flex items-center justify-center font-mono font-bold text-lg border ${
-                            isActive ? "border-green-500 text-green-500" : 
-                            isPaused ? "border-yellow-500 text-yellow-500" :
-                            isEnded ? "border-red-500 text-red-500" :
-                            "border-zinc-700 text-zinc-500"
-                          }`}>
-                            {session}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-3">
-                              <h3 className="text-sm font-bold uppercase tracking-widest">
-                                Session {session} {session === 1 ? "(Aptitude)" : session === 4 ? "(Finale)" : ""}
-                              </h3>
-                              {duration !== "TBA" && (
-                                <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-zinc-400 text-[9px] font-mono rounded-sm">
-                                  {duration}
-                                </span>
-                              )}
-                            </div>
-                            <p className={`text-[10px] font-mono uppercase mt-1 ${
-                              isActive ? "text-green-400" : 
-                              isPaused ? "text-yellow-400" :
-                              isEnded ? "text-red-400" :
-                              "text-zinc-500"
+                        <div className="flex flex-col md:flex-row items-center justify-between w-full">
+                          <div className="flex items-center gap-4 w-full md:w-auto mb-4 md:mb-0">
+                            <div className={`w-10 h-10 flex items-center justify-center font-mono font-bold text-lg border ${
+                              isActive ? "border-green-500 text-green-500" : 
+                              isPaused ? "border-yellow-500 text-yellow-500" :
+                              isEnded ? "border-red-500 text-red-500" :
+                              "border-zinc-700 text-zinc-500"
                             }`}>
-                              {isActive ? "Currently Active" : isPaused ? "System Paused" : isEnded ? "Session Terminated" : "Standby Mode"}
-                            </p>
+                              {session}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-3">
+                                <h3 className="text-sm font-bold uppercase tracking-widest">
+                                  Session {session} {session === 1 ? "(Aptitude)" : session === 4 ? "(Finale)" : ""}
+                                </h3>
+                                {duration !== "TBA" && (
+                                  <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-zinc-400 text-[9px] font-mono rounded-sm">
+                                    {duration}
+                                  </span>
+                                )}
+                              </div>
+                              <p className={`text-[10px] font-mono uppercase mt-1 ${
+                                isActive ? "text-green-400" : 
+                                isPaused ? "text-yellow-400" :
+                                isEnded ? "text-red-400" :
+                                "text-zinc-500"
+                              }`}>
+                                {isActive ? "Currently Active" : isPaused ? "System Paused" : isEnded ? "Session Terminated" : "Standby Mode"}
+                              </p>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-2 w-full md:w-auto">
+                          <div className="flex items-center gap-2 w-full md:w-auto">
                           <button
                             disabled={isEnded}
                             onClick={() => handleUpdateSessionState(session, "ACTIVE")}
@@ -428,6 +429,7 @@ export default function AdminDashboard() {
                           >
                             <XOctagon className="w-3 h-3" /> End
                           </button>
+                        </div>
                         </div>
                         
                         {/* Display Passkeys/Hints for Session 4 (Finale) */}
