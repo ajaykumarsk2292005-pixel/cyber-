@@ -409,45 +409,57 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 w-full md:w-auto">
+                          <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
                           <button
                             disabled={isEnded}
                             onClick={() => handleUpdateSessionState(session, "ACTIVE")}
-                            className={`flex-1 md:flex-none px-4 py-2 font-mono text-xs uppercase tracking-widest flex items-center justify-center gap-2 border transition-all ${
+                            className={`flex-1 md:flex-none px-3 py-2 font-mono text-xs uppercase tracking-widest flex items-center justify-center gap-1 border transition-all ${
                               isActive 
                                 ? "bg-green-500/20 text-green-400 border-green-500"
                                 : "bg-black text-white border-zinc-700 hover:border-green-500 hover:text-green-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                           >
-                            {isPaused ? (
-                              <><Unlock className="w-3 h-3" /> Unlock</>
-                            ) : (
-                              <><Play className="w-3 h-3" /> Start</>
-                            )}
+                            <Play className="w-3 h-3" /> Start
                           </button>
                           
                           <button
                             disabled={isEnded || status === "STANDBY"}
                             onClick={() => handleUpdateSessionState(session, "PAUSED")}
-                            className={`flex-1 md:flex-none px-4 py-2 font-mono text-xs uppercase tracking-widest flex items-center justify-center gap-2 border transition-all ${
+                            className={`flex-1 md:flex-none px-3 py-2 font-mono text-xs uppercase tracking-widest flex items-center justify-center gap-1 border transition-all ${
                               isPaused 
                                 ? "bg-yellow-500/20 text-yellow-400 border-yellow-500"
                                 : "bg-black text-white border-zinc-700 hover:border-yellow-500 hover:text-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                           >
-                            <Lock className="w-3 h-3" /> {isPaused ? "Locked" : "Lock"}
+                            <Square className="w-3 h-3" /> Pause
                           </button>
 
                           <button
                             disabled={isEnded}
                             onClick={() => handleUpdateSessionState(session, "ENDED")}
-                            className={`flex-1 md:flex-none px-4 py-2 font-mono text-xs uppercase tracking-widest flex items-center justify-center gap-2 border transition-all ${
+                            className={`flex-1 md:flex-none px-3 py-2 font-mono text-xs uppercase tracking-widest flex items-center justify-center gap-1 border transition-all ${
                               isEnded
                                 ? "bg-red-500/20 text-red-400 border-red-500"
                                 : "bg-black text-white border-zinc-700 hover:border-red-500 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}
                           >
                             <XOctagon className="w-3 h-3" /> End
+                          </button>
+
+                          <button
+                            disabled={isEnded || status === "STANDBY"}
+                            onClick={() => handleUpdateSessionState(session, "PAUSED")}
+                            className={`flex-1 md:flex-none px-3 py-2 font-mono text-xs uppercase tracking-widest flex items-center justify-center gap-1 border transition-all bg-black text-white border-zinc-700 hover:border-blue-500 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            <Lock className="w-3 h-3" /> Lock
+                          </button>
+
+                          <button
+                            disabled={isEnded}
+                            onClick={() => handleUpdateSessionState(session, "ACTIVE")}
+                            className={`flex-1 md:flex-none px-3 py-2 font-mono text-xs uppercase tracking-widest flex items-center justify-center gap-1 border transition-all bg-black text-white border-zinc-700 hover:border-cyan-500 hover:text-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed`}
+                          >
+                            <Unlock className="w-3 h-3" /> Unlock
                           </button>
                         </div>
                         </div>
