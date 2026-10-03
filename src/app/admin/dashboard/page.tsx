@@ -28,6 +28,10 @@ interface Team {
   node_beta: string;
   status: string;
   created_at?: string;
+  // Optional camelCase for local storage fallback
+  teamAlias?: string;
+  nodeAlpha?: string;
+  nodeBeta?: string;
 }
 
 export default function AdminDashboard() {
