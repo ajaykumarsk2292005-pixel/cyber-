@@ -118,23 +118,81 @@ export default function SessionFourFinale() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-black text-green-500 font-mono flex flex-col items-center justify-center p-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://cdn.pixabay.com/photo/2016/11/22/19/25/binary-1850125_1280.jpg')] opacity-10 bg-cover bg-center mix-blend-overlay"></div>
+      <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden" style={{ perspective: '1500px' }}>
+        
+        {/* The Suitcase */}
         <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: "spring", bounce: 0.5 }}
-          className="text-center relative z-10 p-12 border border-green-500/50 bg-green-950/20 backdrop-blur-sm max-w-2xl"
+          initial={{ y: 200, opacity: 0, rotateX: 20 }}
+          animate={{ y: 0, opacity: 1, rotateX: 10 }}
+          transition={{ duration: 1.5, ease: "easeOut" }}
+          className="relative w-64 h-48 sm:w-80 sm:h-56 z-20"
+          style={{ transformStyle: 'preserve-3d' }}
         >
-          <CheckCircle2 className="w-24 h-24 mx-auto text-green-400 mb-6 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
-          <h1 className="text-5xl font-bold uppercase tracking-widest mb-6 drop-shadow-[0_0_10px_rgba(74,222,128,0.5)]">System Conquered</h1>
-          <p className="text-lg text-green-300/80 mb-8 leading-relaxed">
-            Congratulations, Team {team?.teamAlias}. You have successfully executed the master override and gained full control of the network.
-          </p>
-          <div className="inline-block border border-green-500/30 bg-black px-8 py-4 text-xs tracking-[0.3em] text-green-500/70">
-            TIME OF BREACH: {new Date().toLocaleTimeString()}
+          {/* Bottom Half of Suitcase */}
+          <div className="absolute inset-0 bg-zinc-800 border-2 border-zinc-700 rounded-lg shadow-2xl flex items-center justify-center z-10" style={{ transform: 'translateZ(-10px)' }}>
+            
+            {/* The Tesseract */}
+            <motion.div
+              initial={{ y: 0, scale: 0.5, opacity: 0 }}
+              animate={{ 
+                y: [0, -100, -200, -250], 
+                scale: [0.5, 1, 2, 50],
+                rotateX: [0, 180, 360, 720],
+                rotateY: [0, 180, 360, 720],
+                opacity: [0, 1, 1, 1],
+                filter: ["brightness(1)", "brightness(2)", "brightness(5)", "brightness(20)"]
+              }}
+              transition={{ 
+                duration: 6, 
+                times: [0, 0.4, 0.8, 1], 
+                ease: "easeInOut",
+                delay: 2 // Wait for suitcase to open
+              }}
+              onAnimationComplete={() => router.push('/leaderboard-wait')}
+              className="absolute z-20 w-16 h-16 bg-blue-500/80 border-2 border-cyan-300 shadow-[0_0_50px_rgba(59,130,246,1)]"
+              style={{ transformStyle: 'preserve-3d' }}
+            >
+              {/* Inner glowing core of tesseract */}
+              <div className="absolute inset-2 bg-white/50 border border-white shadow-[0_0_20px_#fff] animate-pulse"></div>
+            </motion.div>
+
           </div>
+
+          {/* Top Half of Suitcase (Lid) */}
+          <motion.div
+            initial={{ rotateX: 0 }}
+            animate={{ rotateX: 115 }}
+            transition={{ duration: 2, delay: 1, ease: "easeInOut" }}
+            className="absolute inset-0 bg-zinc-700 border-2 border-zinc-600 rounded-lg origin-bottom z-30 flex items-start justify-center"
+            style={{ backfaceVisibility: 'hidden' }}
+          >
+            {/* Suitcase Handle */}
+            <div className="w-16 h-4 border-2 border-zinc-500 rounded-t-md -mt-4 bg-zinc-800"></div>
+            
+            {/* Suitcase Latches */}
+            <div className="absolute top-0 left-8 w-4 h-6 bg-zinc-900 border border-zinc-500 -mt-2 rounded-sm"></div>
+            <div className="absolute top-0 right-8 w-4 h-6 bg-zinc-900 border border-zinc-500 -mt-2 rounded-sm"></div>
+          </motion.div>
         </motion.div>
+
+        {/* The White Blast Overlay */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1.5, delay: 6 }}
+          className="absolute inset-0 bg-white z-50 pointer-events-none"
+        ></motion.div>
+
+        <div className="absolute bottom-10 left-0 right-0 text-center z-10">
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 2, delay: 0.5 }}
+            className="text-green-500 font-mono text-sm tracking-widest uppercase"
+          >
+            Access Granted. Opening Secure Container...
+          </motion.p>
+        </div>
       </div>
     );
   }
