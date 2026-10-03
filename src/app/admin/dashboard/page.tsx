@@ -161,14 +161,19 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "registrations") {
+    if (activeTab === "registrations" || activeTab === "leaderboard" || activeTab === "node-monitor") {
       const fetchTeams = async () => {
         setIsLoadingTeams(true);
+        
+        const filterRealTeams = (data: any[]) => {
+          return data.filter(t => t.college !== 'SYS_STATE' && t.college !== 'SYS');
+        };
+
         try {
           if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
             const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
             if (data && data.length > 0) {
-              setTeams(data);
+              setTeams(filterRealTeams(data));
               setIsLoadingTeams(false);
               return;
             }
@@ -180,7 +185,7 @@ export default function AdminDashboard() {
             if (res.ok) {
               const data = await res.json();
               if (data && data.teams && data.teams.length > 0) {
-                setTeams(data.teams.reverse());
+                setTeams(filterRealTeams(data.teams.reverse()));
                 setIsLoadingTeams(false);
                 return;
               }
@@ -192,7 +197,7 @@ export default function AdminDashboard() {
           // Ultimate Fallback to localStorage array if Supabase is empty, failing, or not configured
           const localTeams = localStorage.getItem("cyberhunt_teams");
             if (localTeams) {
-              setTeams(JSON.parse(localTeams).reverse());
+              setTeams(filterRealTeams(JSON.parse(localTeams).reverse()));
             } else {
               setTeams([]);
             }
@@ -200,7 +205,7 @@ export default function AdminDashboard() {
           // Silently fail and fallback to localStorage
           const localTeams = localStorage.getItem("cyberhunt_teams");
           if (localTeams) {
-            setTeams(JSON.parse(localTeams).reverse());
+            setTeams(filterRealTeams(JSON.parse(localTeams).reverse()));
           }
         } finally {
           setIsLoadingTeams(false);
