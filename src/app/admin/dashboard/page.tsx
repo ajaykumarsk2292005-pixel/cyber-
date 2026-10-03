@@ -658,8 +658,82 @@ export default function AdminDashboard() {
             </motion.div>
           )}
 
+          {/* LEADERBOARD TAB */}
+          {activeTab === "leaderboard" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="bg-black/50 border border-zinc-800 p-6 relative">
+                <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Global Leaderboard</h2>
+                <p className="text-sm text-zinc-500 font-mono mb-6 pb-6 border-b border-zinc-800">
+                  Live ranking of all participating nodes based on network infiltration status.
+                </p>
+
+                {teams.length === 0 ? (
+                  <div className="text-center py-10 text-zinc-500 font-mono text-sm uppercase tracking-widest">
+                    No nodes connected to mainframe.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {teams.map((t, i) => (
+                      <div key={i} className={`flex items-center justify-between p-4 border ${i === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : i === 1 ? 'bg-zinc-300/10 border-zinc-400/50' : i === 2 ? 'bg-amber-700/10 border-amber-600/50' : 'bg-zinc-900 border-zinc-800'}`}>
+                        <div className="flex items-center gap-4">
+                          <div className={`font-mono text-lg font-bold w-6 text-center ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-zinc-300' : i === 2 ? 'text-amber-600' : 'text-zinc-500'}`}>
+                            #{i + 1}
+                          </div>
+                          <div>
+                            <div className={`font-bold tracking-widest uppercase ${i === 0 ? 'text-yellow-500' : 'text-white'}`}>{t.teamAlias}</div>
+                            <div className="text-[10px] text-zinc-500 font-mono uppercase">{t.college}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-xs font-bold uppercase tracking-widest ${t.status === 'COMPLETED' ? 'text-green-500' : t.status === 'DISQUALIFIED' ? 'text-red-500' : 'text-cyan-500'}`}>
+                            {t.status === 'COMPLETED' ? 'System Conquered' : t.status === 'DISQUALIFIED' ? 'Terminated' : 'Infiltrating'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* NODE MONITOR TAB */}
+          {activeTab === "monitoring" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="bg-black/50 border border-zinc-800 p-6 relative">
+                <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Node Monitor</h2>
+                <p className="text-sm text-zinc-500 font-mono mb-6 pb-6 border-b border-zinc-800">
+                  Real-time visualization of all connected client machines.
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {teams.map((t, i) => (
+                    <div key={i} className="border border-zinc-800 bg-black p-4 relative group">
+                      <div className={`absolute top-0 right-0 w-2 h-2 ${t.status === 'COMPLETED' ? 'bg-green-500' : t.status === 'DISQUALIFIED' ? 'bg-red-500' : 'bg-cyan-500 animate-pulse'}`}></div>
+                      <Server className="w-8 h-8 text-zinc-700 mb-4 group-hover:text-cyan-500 transition-colors" />
+                      <div className="text-xs font-bold uppercase tracking-widest text-zinc-300 truncate">{t.teamAlias}</div>
+                      <div className="text-[9px] text-zinc-600 font-mono mt-1">NODE_{i.toString().padStart(3, '0')}</div>
+                      <div className="mt-4 text-[10px] uppercase font-bold tracking-widest text-zinc-500 border-t border-zinc-900 pt-2">
+                        State: <span className={t.status === 'COMPLETED' ? 'text-green-500' : t.status === 'DISQUALIFIED' ? 'text-red-500' : 'text-cyan-500'}>{t.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Empty Node Slots */}
+                  {Array.from({ length: Math.max(0, 15 - teams.length) }).map((_, i) => (
+                    <div key={`empty-${i}`} className="border border-zinc-900 bg-black/20 p-4 opacity-30">
+                      <Server className="w-8 h-8 text-zinc-800 mb-4" />
+                      <div className="text-xs font-bold uppercase tracking-widest text-zinc-800">OFFLINE</div>
+                      <div className="text-[9px] text-zinc-800 font-mono mt-1">NO CONNECTION</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* OTHER TABS PLACEHOLDER */}
-          {activeTab !== "telemetry" && activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && (
+          {activeTab !== "telemetry" && activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && activeTab !== "leaderboard" && activeTab !== "monitoring" && (
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}
