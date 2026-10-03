@@ -5,6 +5,17 @@ import { supabase } from "@/lib/supabase";
 // because `teams` allows public INSERT and SELECT.
 
 export const broadcastSessionState = async (sessionNumber: number, status: string) => {
+  // Update local API in-memory state
+  try {
+    await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'update_session', session: sessionNumber.toString(), status })
+    });
+  } catch (e) {
+    console.error("API update error", e);
+  }
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
     return;
   }
@@ -18,7 +29,7 @@ export const broadcastSessionState = async (sessionNumber: number, status: strin
       node_alpha: 'SYS',
       node_beta: 'SYS',
       college: 'SYS_STATE',
-      status: 'WAITING' // Must match default constraints
+      status: 'WAITING'
     });
   } catch (e) {
     console.error("Broadcast error", e);
@@ -26,18 +37,36 @@ export const broadcastSessionState = async (sessionNumber: number, status: strin
 };
 
 export const fetchSessionState = async (sessionNumber: number): Promise<string | null> => {
+  try {
+    // 1. Try hitting the local in-memory API first
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.sessions && data.sessions[sessionNumber.toString()]) {
+        const apiStatus = data.sessions[sessionNumber.toString()];
+        // Only return API status if it's not STANDBY, because default is STANDBY
+        // If it's STANDBY, we might want to check Supabase just in case, but usually API is authoritative if updated
+        if (apiStatus !== "STANDBY" || !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
+           return apiStatus;
+        }
+      }
+    }
+  } catch (e) {
+    console.error("API fetch error", e);
+  }
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
     return null;
   }
   try {
-    // 1. Try standard sessions table
+    // 2. Try standard sessions table
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .select('status')
       .eq('session_number', sessionNumber)
       .single();
       
-    // 2. Check the append-only event log in teams
+    // 3. Check the append-only event log in teams
     const { data: sysTeams, error: sysError } = await supabase
       .from('teams')
       .select('team_alias')
@@ -47,10 +76,9 @@ export const fetchSessionState = async (sessionNumber: number): Promise<string |
       .limit(1);
 
     if (sysTeams && sysTeams.length > 0) {
-      // _SYS_STATE_S1_ACTIVE_xyz123
       const parts = sysTeams[0].team_alias.split('_');
       if (parts.length >= 5) {
-        return parts[4]; // ACTIVE, PAUSED, etc.
+        return parts[4];
       }
     }
     

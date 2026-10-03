@@ -174,7 +174,22 @@ export default function AdminDashboard() {
             }
           }
           
-          // Fallback to localStorage array if Supabase is empty, failing, or not configured
+          // Fallback to in-memory API first
+          try {
+            const res = await fetch('/api/state', { cache: 'no-store' });
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.teams && data.teams.length > 0) {
+                setTeams(data.teams.reverse());
+                setIsLoadingTeams(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("API fetch error", e);
+          }
+
+          // Ultimate Fallback to localStorage array if Supabase is empty, failing, or not configured
           const localTeams = localStorage.getItem("cyberhunt_teams");
             if (localTeams) {
               setTeams(JSON.parse(localTeams).reverse());

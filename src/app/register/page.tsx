@@ -33,6 +33,13 @@ export default function Register() {
     // Instantly transition the user for a fast experience
     router.push("/waiting");
 
+    // Sync to local memory API so Admin can see it on localhost network
+    fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'register_team', team: { ...formData, status: "WAITING", created_at: new Date().toISOString() } })
+    }).catch(console.error);
+
     // Fire and forget Supabase insert in the background ONLY if configured
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
       try {
