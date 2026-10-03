@@ -120,12 +120,10 @@ export default function SessionFourFinale() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden" style={{ perspective: '1200px' }}>
-        
         {/* The Entire 3D Scene */}
         <motion.div 
-          initial={{ y: 200, opacity: 0, rotateX: 55, rotateZ: 0 }}
-          animate={{ y: 0, opacity: 1, rotateX: 60, rotateZ: -10 }}
+          initial={{ y: 200, opacity: 0, rotateX: 60, rotateZ: 0 }}
+          animate={{ y: 0, opacity: 1, rotateX: 65, rotateZ: -15 }}
           transition={{ duration: 1.5, ease: "easeOut" }}
           className="relative w-64 h-48 sm:w-80 sm:h-56 z-20 flex items-center justify-center"
           style={{ transformStyle: 'preserve-3d' }}
@@ -135,7 +133,12 @@ export default function SessionFourFinale() {
             {/* Base */}
             <div className="absolute inset-0 bg-zinc-900 border-2 border-zinc-800 shadow-[0_0_50px_rgba(0,0,0,0.8)]" style={{ transform: 'translateZ(-20px)' }}></div>
             {/* Inner floor (where tesseract rests) */}
-            <div className="absolute inset-0 bg-zinc-950 border border-zinc-800" style={{ transform: 'translateZ(19px)' }}></div>
+            <div className="absolute inset-0 bg-zinc-950 border-4 border-zinc-800" style={{ transform: 'translateZ(19px)' }}>
+              {/* Mechanical details on floor */}
+              <div className="absolute inset-4 border border-zinc-800/50 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 border-2 border-cyan-500/20 rounded-full animate-spin-slow"></div>
+              </div>
+            </div>
             
             {/* Front Wall */}
             <div className="absolute bottom-0 left-0 w-full h-[40px] bg-zinc-800 border border-zinc-700 origin-bottom" style={{ transform: 'translateZ(-20px) rotateX(-90deg)' }}></div>
@@ -151,13 +154,13 @@ export default function SessionFourFinale() {
           <motion.div
             initial={{ y: 0, scale: 0.5, opacity: 0 }}
             animate={{ 
-              y: [0, -100, -200, -250], 
-              scale: [0.5, 1, 2, 50],
+              y: [0, -80, -150, -150], 
+              scale: [0.5, 1, 2, 80],
               rotateX: [0, 180, 360, 720],
               rotateY: [0, 180, 360, 720],
               rotateZ: [0, 90, 180, 360],
               opacity: [0, 1, 1, 1],
-              filter: ["brightness(1)", "brightness(2)", "brightness(5)", "brightness(20)"]
+              filter: ["brightness(1)", "brightness(2)", "brightness(5)", "brightness(30)"]
             }}
             transition={{ 
               duration: 6, 
@@ -167,32 +170,32 @@ export default function SessionFourFinale() {
             }}
             onAnimationComplete={() => router.push('/leaderboard-wait')}
             className="absolute z-30 w-16 h-16"
-            style={{ transformStyle: 'preserve-3d', transform: 'translateZ(20px)' }}
+            style={{ transformStyle: 'preserve-3d', top: '50%', left: '50%', marginLeft: '-32px', marginTop: '-32px' }}
           >
             {/* 6 Faces of the Cube */}
-            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateZ(32px)' }}></div>
-            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateZ(-32px) rotateY(180deg)' }}></div>
-            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateX(32px) rotateY(90deg)' }}></div>
-            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateX(-32px) rotateY(-90deg)' }}></div>
-            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateY(-32px) rotateX(90deg)' }}></div>
-            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/30 shadow-[0_0_20px_#0ff_inset]" style={{ transform: 'translateY(32px) rotateX(-90deg)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/40 shadow-[0_0_30px_#0ff_inset]" style={{ transform: 'rotateY(0deg) translateZ(32px)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/40 shadow-[0_0_30px_#0ff_inset]" style={{ transform: 'rotateY(180deg) translateZ(32px)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/40 shadow-[0_0_30px_#0ff_inset]" style={{ transform: 'rotateY(90deg) translateZ(32px)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/40 shadow-[0_0_30px_#0ff_inset]" style={{ transform: 'rotateY(-90deg) translateZ(32px)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/40 shadow-[0_0_30px_#0ff_inset]" style={{ transform: 'rotateX(90deg) translateZ(32px)' }}></div>
+            <div className="absolute inset-0 border-2 border-cyan-300 bg-cyan-500/40 shadow-[0_0_30px_#0ff_inset]" style={{ transform: 'rotateX(-90deg) translateZ(32px)' }}></div>
             
             {/* Inner glowing core */}
-            <div className="absolute inset-4 bg-white/90 shadow-[0_0_40px_#fff]" style={{ transform: 'translateZ(0px)' }}></div>
+            <div className="absolute inset-4 bg-white/90 shadow-[0_0_50px_#fff]" style={{ transform: 'translateZ(0px)' }}></div>
           </motion.div>
 
           {/* TOP HALF OF SUITCASE (LID) */}
           <motion.div
             initial={{ rotateX: 0 }}
-            animate={{ rotateX: 130 }}
+            animate={{ rotateX: -115 }}
             transition={{ duration: 2, delay: 1, ease: "easeInOut" }}
-            className="absolute inset-0 origin-bottom z-40"
+            className="absolute inset-0 origin-top z-40"
             style={{ transformStyle: 'preserve-3d', transform: 'translateZ(20px)' }}
           >
             {/* Outer Lid Face */}
-            <div className="absolute inset-0 bg-zinc-800 border-2 border-zinc-700 flex justify-center items-start" style={{ transform: 'translateZ(20px)' }}>
+            <div className="absolute inset-0 bg-zinc-800 border-2 border-zinc-700 flex justify-center items-end pb-2" style={{ transform: 'translateZ(20px)' }}>
               {/* Handle */}
-              <div className="w-16 h-4 border-2 border-zinc-500 rounded-t-md -mt-4 bg-zinc-900 relative">
+              <div className="w-16 h-4 border-2 border-zinc-500 rounded-b-md bg-zinc-900 relative -mb-6">
                 <div className="absolute -left-3 top-0 w-2 h-4 bg-zinc-500"></div>
                 <div className="absolute -right-3 top-0 w-2 h-4 bg-zinc-500"></div>
               </div>
@@ -215,6 +218,29 @@ export default function SessionFourFinale() {
           transition={{ duration: 1.5, delay: 6 }}
           className="absolute inset-0 bg-white z-50 pointer-events-none"
         ></motion.div>
+
+        {/* Scattered Particles */}
+        {Array.from({ length: 40 }).map((_, i) => {
+          const angle = (Math.PI * 2 * i) / 40 + (Math.random() * 0.2);
+          const distance = 300 + Math.random() * 800;
+          const x = Math.cos(angle) * distance;
+          const y = Math.sin(angle) * distance;
+          return (
+            <motion.div
+              key={i}
+              initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+              animate={{ 
+                x: [0, x], 
+                y: [0, y], 
+                scale: [0, Math.random() * 2 + 1, 0],
+                opacity: [0, 1, 0]
+              }}
+              transition={{ duration: 1 + Math.random(), delay: 5.8 + Math.random() * 0.5, ease: "easeOut" }}
+              className="absolute top-1/2 left-1/2 w-2 h-2 bg-cyan-200 rounded-full shadow-[0_0_15px_#0ff] z-50 pointer-events-none"
+              style={{ marginLeft: '-4px', marginTop: '-4px' }}
+            />
+          );
+        })}
 
         <div className="absolute bottom-10 left-0 right-0 text-center z-10">
           <motion.p 
