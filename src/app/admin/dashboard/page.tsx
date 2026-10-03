@@ -698,7 +698,7 @@ export default function AdminDashboard() {
           )}
 
           {/* NODE MONITOR TAB */}
-          {activeTab === "monitoring" && (
+          {activeTab === "node-monitor" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="bg-black/50 border border-zinc-800 p-6 relative">
                 <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Node Monitor</h2>
@@ -711,7 +711,7 @@ export default function AdminDashboard() {
                     <div key={i} className="border border-zinc-800 bg-black p-4 relative group">
                       <div className={`absolute top-0 right-0 w-2 h-2 ${t.status === 'COMPLETED' ? 'bg-green-500' : t.status === 'DISQUALIFIED' ? 'bg-red-500' : 'bg-cyan-500 animate-pulse'}`}></div>
                       <Server className="w-8 h-8 text-zinc-700 mb-4 group-hover:text-cyan-500 transition-colors" />
-                      <div className="text-xs font-bold uppercase tracking-widest text-zinc-300 truncate">{t.teamAlias}</div>
+                      <div className="text-xs font-bold uppercase tracking-widest text-zinc-300 truncate">{t.teamAlias || t.team_alias}</div>
                       <div className="text-[9px] text-zinc-600 font-mono mt-1">NODE_{i.toString().padStart(3, '0')}</div>
                       <div className="mt-4 text-[10px] uppercase font-bold tracking-widest text-zinc-500 border-t border-zinc-900 pt-2">
                         State: <span className={t.status === 'COMPLETED' ? 'text-green-500' : t.status === 'DISQUALIFIED' ? 'text-red-500' : 'text-cyan-500'}>{t.status}</span>
@@ -733,7 +733,7 @@ export default function AdminDashboard() {
           )}
 
           {/* OTHER TABS PLACEHOLDER */}
-          {activeTab !== "telemetry" && activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && activeTab !== "leaderboard" && activeTab !== "monitoring" && (
+          {activeTab !== "telemetry" && activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && activeTab !== "leaderboard" && activeTab !== "node-monitor" && (
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}
