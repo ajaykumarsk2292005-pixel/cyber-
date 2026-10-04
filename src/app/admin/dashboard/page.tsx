@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { QuestionManager } from "@/components/QuestionManager";
-import { broadcastSessionState } from "@/lib/stateSync";
+import { broadcastSessionState, fetchSessionState } from "@/lib/stateSync";
 
 interface Team {
   id?: number;
@@ -39,24 +39,27 @@ export default function AdminDashboard() {
   // Load session states on mount
   useEffect(() => {
     const loadSessionStates = async () => {
-      // 1. Try to load from Supabase if configured
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-        try {
-          const { data, error } = await supabase.from('sessions').select('*');
-          if (data && !error) {
-            const states: Record<number, string> = {};
-            data.forEach((s: { session_number: number, status: string }) => { states[s.session_number] = s.status; });
-            setSessionStates(prev => ({ ...prev, ...(states as unknown as Record<number, "STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">) }));
-            // Sync to local storage for local fallback
-            localStorage.setItem("cyberhunt_session_states", JSON.stringify({ ...sessionStates, ...states }));
-            return;
-          }
-        } catch (err) {}
+      const states: Record<number, any> = {};
+      let hasRemoteData = false;
+      for (let i = 1; i <= 5; i++) {
+        const s = await fetchSessionState(i);
+        if (s) {
+          states[i] = s;
+          hasRemoteData = true;
+        }
       }
-      // 2. Fallback to localStorage
-      const localStates = localStorage.getItem("cyberhunt_session_states");
-      if (localStates) {
-        setSessionStates(JSON.parse(localStates));
+      
+      if (hasRemoteData) {
+        setSessionStates(prev => {
+          const newStates = { ...prev, ...states };
+          localStorage.setItem("cyberhunt_session_states", JSON.stringify(newStates));
+          return newStates;
+        });
+      } else {
+        const localStates = localStorage.getItem("cyberhunt_session_states");
+        if (localStates) {
+          setSessionStates(JSON.parse(localStates));
+        }
       }
     };
     loadSessionStates();
@@ -351,8 +354,8 @@ export default function AdminDashboard() {
                   </div>
                   <button 
                     onClick={() => {
-                      if (confirm('Are you sure you want to reset all sessions to STANDBY? This will restart the entire event.')) {
-                        [1, 2, 3, 4, 5].forEach(session => handleUpdateSessionState(session, "STANDBY"));
+                      if (confirm('Are you sure you want to reset all sessions? This will wipe all progress on participant nodes.')) {
+                        [1, 2, 3, 4, 5].forEach(session => handleUpdateSessionState(session, "RESET" as any));
                       }
                     }}
                     className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-red-900/50 hover:border-red-500 hover:bg-red-950/20 text-red-500/80 hover:text-red-400 font-mono text-xs uppercase tracking-widest transition-all"

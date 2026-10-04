@@ -59,6 +59,14 @@ export default function SessionFourFinale() {
       }
 
       if (remoteStatus) {
+        if (remoteStatus === "RESET") {
+          localStorage.removeItem("cyberhunt_session_states");
+          localStorage.removeItem("cyberhunt_current_session");
+          localStorage.removeItem("session_4_completed");
+          window.location.href = "/";
+          return;
+        }
+
         finalStatus = remoteStatus;
       } else if (localStatus) {
         finalStatus = localStatus;
@@ -188,7 +196,7 @@ export default function SessionFourFinale() {
           {/* TOP HALF OF SUITCASE (LID) */}
           <motion.div
             initial={{ rotateX: 0 }}
-            animate={{ rotateX: -115 }}
+            animate={{ rotateX: 115 }}
             transition={{ duration: 2, delay: 1, ease: "easeInOut" }}
             className="absolute inset-0 origin-top z-40"
             style={{ transformStyle: 'preserve-3d', transform: 'translateZ(20px)' }}

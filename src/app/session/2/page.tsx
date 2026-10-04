@@ -51,6 +51,14 @@ export default function SessionTwo() {
       }
 
       if (remoteStatus) {
+        if (remoteStatus === "RESET") {
+          localStorage.removeItem("cyberhunt_session_states");
+          localStorage.removeItem("cyberhunt_current_session");
+          localStorage.removeItem("session_2_completed");
+          window.location.href = "/";
+          return;
+        }
+
         if (remoteStatus === "STANDBY" && localStatus && localStatus !== "STANDBY") {
           finalStatus = localStatus;
         } else {
