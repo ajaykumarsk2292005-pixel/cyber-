@@ -5,6 +5,7 @@ declare global {
     sessions: Record<string, string>;
     teams: any[];
     deleted_teams: string[];
+    progress: Record<string, { session: number, question: number, timestamp: number }>;
   } | undefined;
 }
 
@@ -17,7 +18,8 @@ if (!globalThis.__cyberhunt_state) {
       "4": "STANDBY"
     },
     teams: [],
-    deleted_teams: []
+    deleted_teams: [],
+    progress: {}
   };
 }
 
@@ -58,6 +60,14 @@ export async function POST(req: Request) {
           ...data.team
         };
       }
+    }
+    else if (data.type === 'ping_progress') {
+      if (!globalThis.__cyberhunt_state!.progress) globalThis.__cyberhunt_state!.progress = {};
+      globalThis.__cyberhunt_state!.progress[data.team_alias] = {
+        session: data.session,
+        question: data.question,
+        timestamp: Date.now()
+      };
     }
 
     return NextResponse.json({ success: true, state: globalThis.__cyberhunt_state });

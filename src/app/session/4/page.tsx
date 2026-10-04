@@ -82,6 +82,28 @@ export default function SessionFourFinale() {
     return () => clearInterval(interval);
   }, [router]);
 
+  // Ping progress to admin dashboard
+  useEffect(() => {
+    const pingProgress = async () => {
+      try {
+        if (team) {
+          const alias = team.teamAlias;
+          if (alias) {
+            await fetch('/api/state', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'ping_progress', team_alias: alias, session: 4, question: 1 })
+            });
+          }
+        }
+      } catch (e) {}
+    };
+    
+    pingProgress();
+    const interval = setInterval(pingProgress, 3000);
+    return () => clearInterval(interval);
+  }, [team]);
+
   if (sessionStatus === "STANDBY") {
     return (
       <div className="min-h-screen bg-black text-green-500 font-mono flex items-center justify-center">

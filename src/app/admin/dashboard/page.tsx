@@ -88,6 +88,7 @@ export default function AdminDashboard() {
   const [tempPasskey, setTempPasskey] = useState("");
 
   const [teams, setTeams] = useState<Team[]>([]);
+  const [progressData, setProgressData] = useState<Record<string, { session: number, question: number, timestamp: number }>>({});
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
   const [editingTeamData, setEditingTeamData] = useState<Team | null>(null);
@@ -173,7 +174,7 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "registrations" || activeTab === "leaderboard" || activeTab === "node-monitor") {
+    if (activeTab === "registrations" || activeTab === "leaderboard" || activeTab === "monitoring") {
       const fetchTeams = async () => {
         setIsLoadingTeams(true);
         
@@ -186,6 +187,7 @@ export default function AdminDashboard() {
               const memoryState = await res.json();
               if (memoryState && memoryState.deleted_teams) memoryDeleted = memoryState.deleted_teams;
               if (memoryState && memoryState.teams) memoryTeams = memoryState.teams;
+              if (memoryState && memoryState.progress) setProgressData(memoryState.progress);
             }
           } catch(e) {
             console.error("API fetch error", e);
@@ -233,7 +235,13 @@ export default function AdminDashboard() {
           setIsLoadingTeams(false);
         }
       };
+      
+      // Initial fetch
       fetchTeams();
+
+      // Setup polling for live updates
+      const interval = setInterval(fetchTeams, 3000);
+      return () => clearInterval(interval);
     }
   }, [activeTab]);
 
@@ -737,7 +745,7 @@ export default function AdminDashboard() {
           )}
 
           {/* NODE MONITOR TAB */}
-          {activeTab === "node-monitor" && (
+          {activeTab === "monitoring" && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="bg-black/50 border border-zinc-800 p-6 relative">
                 <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-100 mb-2">Node Monitor</h2>
@@ -746,17 +754,35 @@ export default function AdminDashboard() {
                 </p>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {teams.map((t, i) => (
-                    <div key={i} className="border border-zinc-800 bg-black p-4 relative group">
-                      <div className={`absolute top-0 right-0 w-2 h-2 ${t.status === 'COMPLETED' ? 'bg-green-500' : t.status === 'DISQUALIFIED' ? 'bg-red-500' : 'bg-cyan-500 animate-pulse'}`}></div>
-                      <Server className="w-8 h-8 text-zinc-700 mb-4 group-hover:text-cyan-500 transition-colors" />
-                      <div className="text-xs font-bold uppercase tracking-widest text-zinc-300 truncate">{t.teamAlias || t.team_alias}</div>
-                      <div className="text-[9px] text-zinc-600 font-mono mt-1">NODE_{i.toString().padStart(3, '0')}</div>
-                      <div className="mt-4 text-[10px] uppercase font-bold tracking-widest text-zinc-500 border-t border-zinc-900 pt-2">
-                        State: <span className={t.status === 'COMPLETED' ? 'text-green-500' : t.status === 'DISQUALIFIED' ? 'text-red-500' : 'text-cyan-500'}>{t.status}</span>
+                  {teams.map((t, i) => {
+                    const prog = progressData[t.teamAlias || t.team_alias];
+                    const isLive = prog && (Date.now() - prog.timestamp < 10000); // within last 10s
+                    return (
+                      <div key={i} className={`border ${isLive ? 'border-green-500/50 bg-green-950/20' : 'border-zinc-800 bg-black'} p-4 relative group transition-colors duration-500`}>
+                        <div className={`absolute top-0 right-0 w-2 h-2 ${isLive ? 'bg-green-500 animate-pulse shadow-[0_0_10px_#0f0]' : t.status === 'COMPLETED' ? 'bg-green-500' : t.status === 'DISQUALIFIED' ? 'bg-red-500' : 'bg-cyan-500 opacity-50'}`}></div>
+                        <Server className={`w-8 h-8 mb-4 transition-colors ${isLive ? 'text-green-500' : 'text-zinc-700 group-hover:text-cyan-500'}`} />
+                        <div className="text-xs font-bold uppercase tracking-widest text-zinc-300 truncate">{t.teamAlias || t.team_alias}</div>
+                        <div className="text-[9px] text-zinc-600 font-mono mt-1">NODE_{i.toString().padStart(3, '0')}</div>
+                        
+                        <div className="mt-4 text-[10px] uppercase font-bold tracking-widest text-zinc-500 border-t border-zinc-900 pt-2">
+                          <div className="flex justify-between items-center mb-1">
+                            <span>Sess:</span>
+                            <span className={prog ? 'text-white' : 'text-zinc-700'}>{prog ? prog.session : '-'}</span>
+                          </div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span>Task:</span>
+                            <span className={prog ? 'text-white' : 'text-zinc-700'}>{prog ? prog.question : '-'}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span>State:</span>
+                            <span className={t.status === 'COMPLETED' ? 'text-green-500' : t.status === 'DISQUALIFIED' ? 'text-red-500' : isLive ? 'text-green-400' : 'text-zinc-500'}>
+                              {isLive ? 'ACTIVE' : t.status}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
                   {/* Empty Node Slots */}
                   {Array.from({ length: Math.max(0, 15 - teams.length) }).map((_, i) => (

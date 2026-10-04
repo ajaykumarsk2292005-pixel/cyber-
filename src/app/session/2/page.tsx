@@ -83,6 +83,30 @@ export default function SessionTwo() {
     return () => { clearInterval(interval); window.removeEventListener("storage", handleStorage); };
   }, []);
 
+  // Ping progress to admin dashboard
+  useEffect(() => {
+    const pingProgress = async () => {
+      try {
+        const teamDataStr = localStorage.getItem("cyberhunt_team");
+        if (teamDataStr) {
+          const team = JSON.parse(teamDataStr);
+          const alias = team.teamAlias || team.team_alias;
+          if (alias) {
+            await fetch('/api/state', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'ping_progress', team_alias: alias, session: 2, question: currentIndex + 1 })
+            });
+          }
+        }
+      } catch (e) {}
+    };
+    
+    pingProgress();
+    const interval = setInterval(pingProgress, 3000);
+    return () => clearInterval(interval);
+  }, [currentIndex]);
+
   const currentQ = questions[currentIndex];
 
   const handleOptionSelect = (option: string, index: number) => {
