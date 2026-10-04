@@ -747,13 +747,26 @@ export default function AdminDashboard() {
                       })
                       .map((t, i) => (
                       <div key={i} className={`flex items-center justify-between p-4 border ${i === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : i === 1 ? 'bg-zinc-300/10 border-zinc-400/50' : i === 2 ? 'bg-amber-700/10 border-amber-600/50' : 'bg-zinc-900 border-zinc-800'}`}>
-                        <div className="flex items-center gap-4">
-                          <div className={`font-mono text-lg font-bold w-6 text-center ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-zinc-300' : i === 2 ? 'text-amber-600' : 'text-zinc-500'}`}>
-                            #{i + 1}
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-4">
+                            <div className={`font-mono text-lg font-bold w-6 text-center ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-zinc-300' : i === 2 ? 'text-amber-600' : 'text-zinc-500'}`}>
+                              #{i + 1}
+                            </div>
+                            <div>
+                              <div className={`font-bold tracking-widest uppercase ${i === 0 ? 'text-yellow-500' : 'text-white'}`}>{t.teamAlias || t.team_alias}</div>
+                              <div className="text-[10px] text-zinc-500 font-mono uppercase">{t.college}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className={`font-bold tracking-widest uppercase ${i === 0 ? 'text-yellow-500' : 'text-white'}`}>{t.teamAlias || t.team_alias}</div>
-                            <div className="text-[10px] text-zinc-500 font-mono uppercase">{t.college}</div>
+                          <div className="flex items-center gap-2 ml-10">
+                            {[1, 2, 3, 4].map(s => {
+                              const sData = scoresData[t.teamAlias || t.team_alias]?.[s];
+                              if (!sData) return null;
+                              return (
+                                <div key={s} className="px-2 py-1 bg-black border border-zinc-800 text-[9px] font-mono text-zinc-400">
+                                  <span className="text-zinc-500">S{s}:</span> {sData.score}PTS <span className="text-zinc-600">|</span> {sData.time_taken}s
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                         <div className="text-right">
@@ -761,7 +774,7 @@ export default function AdminDashboard() {
                             {t.totalScore} <span className="text-xs text-zinc-500">PTS</span>
                           </div>
                           <div className="text-xs text-zinc-400 font-mono uppercase">
-                            Time: {t.totalTime > 0 ? `${Math.floor(t.totalTime / 60)}m ${t.totalTime % 60}s` : 'N/A'}
+                            Total Time: {t.totalTime > 0 ? `${Math.floor(t.totalTime / 60)}m ${t.totalTime % 60}s` : 'N/A'}
                           </div>
                           <div className={`text-[10px] uppercase tracking-widest mt-1 ${t.status === 'COMPLETED' ? 'text-green-500' : t.status === 'DISQUALIFIED' ? 'text-red-500' : 'text-cyan-500'}`}>
                             {t.status === 'COMPLETED' ? 'System Conquered' : t.status === 'DISQUALIFIED' ? 'Terminated' : 'Infiltrating'}
