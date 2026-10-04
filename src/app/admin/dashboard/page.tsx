@@ -9,18 +9,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { QuestionManager } from "@/components/QuestionManager";
 import { broadcastSessionState } from "@/lib/stateSync";
-
-const data = [
-  { time: "00:00", score: 20 },
-  { time: "04:00", score: 45 },
-  { time: "08:00", score: 30 },
-  { time: "12:00", score: 80 },
-  { time: "16:00", score: 65 },
-  { time: "20:00", score: 90 },
-];
 
 interface Team {
   id?: number;
@@ -261,7 +251,6 @@ export default function AdminDashboard() {
   };
 
   const TABS = [
-    { id: "telemetry", label: "Telemetry", icon: Activity },
     { id: "event-control", label: "Event Control", icon: Settings },
     { id: "registrations", label: "Registrations", icon: Users },
     { id: "questions", label: "Question Mgmt", icon: FileText },
@@ -327,68 +316,6 @@ export default function AdminDashboard() {
               Admin Auth Active
             </div>
           </header>
-
-          {/* TELEMETRY TAB */}
-          {activeTab === "telemetry" && (
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                  { label: "Active Nodes", value: "142", icon: Users },
-                  { label: "Data Throughput", value: "8.4 TB", icon: Server },
-                  { label: "Global Score Avg", value: "76.5", icon: BarChart },
-                  { label: "System Load", value: "34%", icon: Activity }
-                ].map((stat, idx) => (
-                  <motion.div 
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="p-6 bg-black/50 border border-zinc-800 relative backdrop-blur-md"
-                  >
-                    <div className="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-zinc-500"></div>
-                    <div className="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-zinc-500"></div>
-                    
-                    <div className="flex items-center justify-between mb-4">
-                      <stat.icon className="w-5 h-5 text-zinc-500" />
-                      <span className="text-[10px] font-mono text-zinc-600 uppercase">Live</span>
-                    </div>
-                    <div className="text-3xl font-mono text-zinc-100 mb-1">{stat.value}</div>
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">{stat.label}</div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-6 bg-black/50 border border-zinc-800 relative backdrop-blur-md"
-              >
-                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-zinc-500"></div>
-                <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-zinc-500"></div>
-                
-                <h2 className="text-xs font-mono uppercase tracking-widest text-zinc-400 mb-6">Global Scoring Vector</h2>
-                <div className="h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data}>
-                      <defs>
-                        <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#d4af37" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#d4af37" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="time" stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#000', borderColor: '#27272a', color: '#fff', fontSize: '12px', fontFamily: 'monospace' }}
-                        itemStyle={{ color: '#d4af37' }}
-                      />
-                      <Area type="monotone" dataKey="score" stroke="#d4af37" fillOpacity={1} fill="url(#colorScore)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </motion.div>
-            </div>
-          )}
 
           {/* EVENT CONTROL TAB */}
           {activeTab === "event-control" && (
@@ -813,7 +740,7 @@ export default function AdminDashboard() {
           )}
 
           {/* OTHER TABS PLACEHOLDER */}
-          {activeTab !== "telemetry" && activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && activeTab !== "leaderboard" && activeTab !== "node-monitor" && (
+          {activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && activeTab !== "leaderboard" && activeTab !== "node-monitor" && (
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}
