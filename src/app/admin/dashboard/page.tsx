@@ -177,11 +177,29 @@ export default function AdminDashboard() {
       const fetchTeams = async () => {
         setIsLoadingTeams(true);
         
-        const filterRealTeams = (data: any[]) => {
-          return data.filter(t => t.college !== 'SYS_STATE' && t.college !== 'SYS');
-        };
-
         try {
+          let memoryDeleted: string[] = [];
+          let memoryTeams: any[] = [];
+          try {
+            const res = await fetch('/api/state', { cache: 'no-store' });
+            if (res.ok) {
+              const memoryState = await res.json();
+              if (memoryState && memoryState.deleted_teams) memoryDeleted = memoryState.deleted_teams;
+              if (memoryState && memoryState.teams) memoryTeams = memoryState.teams;
+            }
+          } catch(e) {
+            console.error("API fetch error", e);
+          }
+
+          const filterRealTeams = (data: any[]) => {
+            return data.filter(t => 
+              t.college !== 'SYS_STATE' && 
+              t.college !== 'SYS' &&
+              !memoryDeleted.includes(t.team_alias) &&
+              !memoryDeleted.includes(t.teamAlias)
+            );
+          };
+
           if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
             const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
             if (!error && data) {
@@ -192,18 +210,10 @@ export default function AdminDashboard() {
           }
           
           // Fallback to in-memory API first
-          try {
-            const res = await fetch('/api/state', { cache: 'no-store' });
-            if (res.ok) {
-              const data = await res.json();
-              if (data && data.teams && data.teams.length > 0) {
-                setTeams(filterRealTeams(data.teams.reverse()));
-                setIsLoadingTeams(false);
-                return;
-              }
-            }
-          } catch (e) {
-            console.error("API fetch error", e);
+          if (memoryTeams && memoryTeams.length > 0) {
+            setTeams(filterRealTeams(memoryTeams.reverse()));
+            setIsLoadingTeams(false);
+            return;
           }
 
           // Ultimate Fallback to localStorage array if Supabase is empty, failing, or not configured

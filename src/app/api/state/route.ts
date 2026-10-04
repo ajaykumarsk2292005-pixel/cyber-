@@ -4,6 +4,7 @@ declare global {
   var __cyberhunt_state: {
     sessions: Record<string, string>;
     teams: any[];
+    deleted_teams: string[];
   } | undefined;
 }
 
@@ -15,7 +16,8 @@ if (!globalThis.__cyberhunt_state) {
       "3": "STANDBY",
       "4": "STANDBY"
     },
-    teams: []
+    teams: [],
+    deleted_teams: []
   };
 }
 
@@ -39,6 +41,9 @@ export async function POST(req: Request) {
       }
     }
     else if (data.type === 'delete_team') {
+      if (!globalThis.__cyberhunt_state!.deleted_teams) globalThis.__cyberhunt_state!.deleted_teams = [];
+      globalThis.__cyberhunt_state!.deleted_teams.push(data.team_alias);
+      
       globalThis.__cyberhunt_state!.teams = globalThis.__cyberhunt_state!.teams.filter(
         t => t.team_alias !== data.team_alias && t.teamAlias !== data.team_alias
       );
