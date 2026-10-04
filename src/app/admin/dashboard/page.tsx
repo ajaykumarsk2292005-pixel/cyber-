@@ -103,10 +103,14 @@ export default function AdminDashboard() {
     newTeams.splice(index, 1);
     setTeams(newTeams);
     
-    // Update local storage (reverse the reverse we do on load)
     const localTeams = JSON.parse(localStorage.getItem("cyberhunt_teams") || "[]");
-    const updatedLocal = localTeams.filter((t: any) => t.teamAlias !== teamToDelete.teamAlias && t.team_alias !== teamToDelete.team_alias);
+    const updatedLocal = localTeams.filter((t: any) => t.teamAlias !== teamToDelete.teamAlias && t.team_alias !== teamToDelete.team_alias && t.teamAlias !== teamToDelete.team_alias && t.team_alias !== teamToDelete.teamAlias);
     localStorage.setItem("cyberhunt_teams", JSON.stringify(updatedLocal));
+
+    // Persistent Admin Blacklist
+    const localDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+    localDeleted.push(teamToDelete.team_alias || teamToDelete.teamAlias);
+    localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify(localDeleted));
     
     // Update Supabase if connected
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
@@ -196,12 +200,14 @@ export default function AdminDashboard() {
           }
 
           const filterRealTeams = (data: any[]) => {
-            return data.filter(t => 
-              t.college !== 'SYS_STATE' && 
-              t.college !== 'SYS' &&
-              !memoryDeleted.includes(t.team_alias) &&
-              !memoryDeleted.includes(t.teamAlias)
-            );
+            const localDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+            return data.filter(t => {
+              const alias = t.team_alias || t.teamAlias;
+              return t.college !== 'SYS_STATE' && 
+                     t.college !== 'SYS' &&
+                     !memoryDeleted.includes(alias) &&
+                     !localDeleted.includes(alias);
+            });
           };
 
           if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
