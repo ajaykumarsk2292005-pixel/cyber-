@@ -19,7 +19,7 @@ export default function SessionOne() {
   const [passkey, setPasskey] = useState("");
   const [passkeyError, setPasskeyError] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(600);
 
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
@@ -209,14 +209,19 @@ export default function SessionOne() {
           <span>CYBER<span className="text-zinc-500">HUNT</span></span>
         </div>
         <div className="text-zinc-500 text-xs tracking-widest uppercase flex items-center gap-6">
-          {!isCompleted && timeLeft !== null && (
-            <div className={`font-bold text-sm ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-zinc-300'}`}>
-              TIME: {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
-            </div>
-          )}
           <span>{isCompleted ? "SEASON_1 :: COMPLETE" : `SEASON_1 :: PHASE_${currentIndex + 1}`}</span>
         </div>
       </nav>
+
+      {/* MASSIVE VISIBLE TIMER */}
+      {!isCompleted && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center">
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1 font-bold">Time Remaining</div>
+          <div className={`text-4xl md:text-5xl font-black tracking-widest ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]'}`}>
+            {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 w-full max-w-3xl mx-auto flex flex-col justify-center relative z-10">
         <AnimatePresence mode="wait">
