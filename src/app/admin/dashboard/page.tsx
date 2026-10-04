@@ -829,7 +829,7 @@ export default function AdminDashboard() {
           )}
 
           {/* OTHER TABS PLACEHOLDER */}
-          {activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && activeTab !== "leaderboard" && activeTab !== "node-monitor" && (
+          {activeTab !== "event-control" && activeTab !== "questions" && activeTab !== "image-challenge" && activeTab !== "video-challenge" && activeTab !== "finale-challenge" && activeTab !== "registrations" && activeTab !== "leaderboard" && activeTab !== "monitoring" && (
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }}
