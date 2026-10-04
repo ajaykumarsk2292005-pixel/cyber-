@@ -64,11 +64,12 @@ export default function AdminDashboard() {
 
   const handleUpdateSessionState = async (session: number, status: "STANDBY" | "ACTIVE" | "PAUSED" | "ENDED") => {
     // Optimistic UI update
-    const newStates = { ...sessionStates, [session]: status };
-    setSessionStates(newStates);
-    
-    // Fallback save to localStorage
-    localStorage.setItem("cyberhunt_session_states", JSON.stringify(newStates));
+    setSessionStates(prev => {
+      const newStates = { ...prev, [session]: status };
+      // Fallback save to localStorage
+      localStorage.setItem("cyberhunt_session_states", JSON.stringify(newStates));
+      return newStates;
+    });
     
     // Save to Supabase if configured (fire and forget)
     await broadcastSessionState(session, status);
