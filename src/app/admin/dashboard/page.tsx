@@ -236,7 +236,7 @@ export default function AdminDashboard() {
     }
     
     // Headers
-    const headers = ['Rank', 'Team Alias', 'College', 'Node Alpha', 'Node Beta', 'Status'];
+    const headers = ['Rank', 'Team Alias', 'College', 'Participant 1', 'Participant 2', 'Status'];
     
     // Rows
     const rows = data.map((team, index) => {
@@ -515,8 +515,8 @@ export default function AdminDashboard() {
                         <tr>
                           <th className="p-4 font-normal">Team Alias</th>
                           <th className="p-4 font-normal">College</th>
-                          <th className="p-4 font-normal">Node Alpha</th>
-                          <th className="p-4 font-normal">Node Beta</th>
+                          <th className="p-4 font-normal">Participant 1</th>
+                          <th className="p-4 font-normal">Participant 2</th>
                           <th className="p-4 font-normal">Status</th>
                           <th className="p-4 font-normal text-right">Actions</th>
                         </tr>
