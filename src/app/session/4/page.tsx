@@ -167,11 +167,32 @@ export default function SessionFourFinale() {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim().toUpperCase() === masterPasskey.toUpperCase()) {
       setIsSuccess(true);
       setErrorMsg("");
+
+      // Calculate Score
+      let score = 20; // Final passkey score
+
+      // Calculate time taken
+      const endTimeStr = localStorage.getItem("session_4_endtime");
+      const startTime = endTimeStr ? parseInt(endTimeStr) - 1500000 : Date.now() - 1500000;
+      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+
+      try {
+        const teamDataStr = localStorage.getItem("cyberhunt_team");
+        if (teamDataStr) {
+          const teamData = JSON.parse(teamDataStr);
+          await fetch('/api/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'submit_score', team_alias: teamData.teamAlias || teamData.team_alias, session: 4, score, time_taken: timeTaken })
+          });
+        }
+      } catch (e) {}
+
       // Mark as completed
       if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
         const saved = localStorage.getItem("cyberhunt_team");

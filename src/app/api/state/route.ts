@@ -6,6 +6,7 @@ declare global {
     teams: any[];
     deleted_teams: string[];
     progress: Record<string, { session: number, question: number, timestamp: number }>;
+    scores: Record<string, Record<string, { score: number, time_taken: number }>>;
   } | undefined;
 }
 
@@ -19,7 +20,8 @@ if (!globalThis.__cyberhunt_state) {
     },
     teams: [],
     deleted_teams: [],
-    progress: {}
+    progress: {},
+    scores: {}
   };
 }
 
@@ -68,6 +70,17 @@ export async function POST(req: Request) {
         question: data.question,
         timestamp: Date.now()
       };
+    }
+    else if (data.type === 'submit_score') {
+      if (!globalThis.__cyberhunt_state!.scores) globalThis.__cyberhunt_state!.scores = {};
+      if (!globalThis.__cyberhunt_state!.scores[data.team_alias]) globalThis.__cyberhunt_state!.scores[data.team_alias] = {};
+      
+      if (!globalThis.__cyberhunt_state!.scores[data.team_alias][data.session]) {
+        globalThis.__cyberhunt_state!.scores[data.team_alias][data.session] = {
+          score: data.score,
+          time_taken: data.time_taken
+        };
+      }
     }
 
     return NextResponse.json({ success: true, state: globalThis.__cyberhunt_state });

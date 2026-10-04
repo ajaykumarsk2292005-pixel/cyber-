@@ -89,6 +89,7 @@ export default function AdminDashboard() {
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [progressData, setProgressData] = useState<Record<string, { session: number, question: number, timestamp: number }>>({});
+  const [scoresData, setScoresData] = useState<Record<string, Record<string, { score: number, time_taken: number }>>>({});
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [editingTeamIndex, setEditingTeamIndex] = useState<number | null>(null);
   const [editingTeamData, setEditingTeamData] = useState<Team | null>(null);
@@ -188,6 +189,7 @@ export default function AdminDashboard() {
               if (memoryState && memoryState.deleted_teams) memoryDeleted = memoryState.deleted_teams;
               if (memoryState && memoryState.teams) memoryTeams = memoryState.teams;
               if (memoryState && memoryState.progress) setProgressData(memoryState.progress);
+              if (memoryState && memoryState.scores) setScoresData(memoryState.scores);
             }
           } catch(e) {
             console.error("API fetch error", e);
@@ -720,19 +722,42 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {teams.map((t, i) => (
+                    {teams
+                      .map(t => {
+                        const alias = t.teamAlias || t.team_alias;
+                        let totalScore = 0;
+                        let totalTime = 0;
+                        if (scoresData[alias]) {
+                          Object.values(scoresData[alias]).forEach((s: any) => {
+                            totalScore += (s.score || 0);
+                            totalTime += (s.time_taken || 0);
+                          });
+                        }
+                        return { ...t, totalScore, totalTime };
+                      })
+                      .sort((a, b) => {
+                        if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+                        return a.totalTime - b.totalTime;
+                      })
+                      .map((t, i) => (
                       <div key={i} className={`flex items-center justify-between p-4 border ${i === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : i === 1 ? 'bg-zinc-300/10 border-zinc-400/50' : i === 2 ? 'bg-amber-700/10 border-amber-600/50' : 'bg-zinc-900 border-zinc-800'}`}>
                         <div className="flex items-center gap-4">
                           <div className={`font-mono text-lg font-bold w-6 text-center ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-zinc-300' : i === 2 ? 'text-amber-600' : 'text-zinc-500'}`}>
                             #{i + 1}
                           </div>
                           <div>
-                            <div className={`font-bold tracking-widest uppercase ${i === 0 ? 'text-yellow-500' : 'text-white'}`}>{t.teamAlias}</div>
+                            <div className={`font-bold tracking-widest uppercase ${i === 0 ? 'text-yellow-500' : 'text-white'}`}>{t.teamAlias || t.team_alias}</div>
                             <div className="text-[10px] text-zinc-500 font-mono uppercase">{t.college}</div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`text-xs font-bold uppercase tracking-widest ${t.status === 'COMPLETED' ? 'text-green-500' : t.status === 'DISQUALIFIED' ? 'text-red-500' : 'text-cyan-500'}`}>
+                          <div className="text-lg font-bold text-green-400">
+                            {t.totalScore} <span className="text-xs text-zinc-500">PTS</span>
+                          </div>
+                          <div className="text-xs text-zinc-400 font-mono uppercase">
+                            Time: {t.totalTime > 0 ? `${Math.floor(t.totalTime / 60)}m ${t.totalTime % 60}s` : 'N/A'}
+                          </div>
+                          <div className={`text-[10px] uppercase tracking-widest mt-1 ${t.status === 'COMPLETED' ? 'text-green-500' : t.status === 'DISQUALIFIED' ? 'text-red-500' : 'text-cyan-500'}`}>
                             {t.status === 'COMPLETED' ? 'System Conquered' : t.status === 'DISQUALIFIED' ? 'Terminated' : 'Infiltrating'}
                           </div>
                         </div>

@@ -146,11 +146,32 @@ export default function SessionTwo() {
     }
   };
 
-  const handlePasskeySubmit = (e: React.FormEvent) => {
+  const handlePasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const expectedPasskey = localStorage.getItem("passkey_2") || "SEASON3-ACCESS";
     
     if (passkey.toUpperCase() === expectedPasskey.toUpperCase()) { 
+      // Calculate Score
+      let score = 5; // Passkey score
+      score += submittedAnswers.length * 5; // 5 marks per image solved
+
+      // Calculate time taken
+      const endTimeStr = localStorage.getItem("session_2_endtime");
+      const startTime = endTimeStr ? parseInt(endTimeStr) - 1200000 : Date.now() - 1200000;
+      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+
+      try {
+        const teamDataStr = localStorage.getItem("cyberhunt_team");
+        if (teamDataStr) {
+          const team = JSON.parse(teamDataStr);
+          await fetch('/api/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'submit_score', team_alias: team.teamAlias || team.team_alias, session: 2, score, time_taken: timeTaken })
+          });
+        }
+      } catch (e) {}
+
       localStorage.setItem("cyberhunt_current_session", "3");
       router.push("/waiting"); 
     } else {
