@@ -217,22 +217,25 @@ export default function SessionThree() {
                     setAnswerError(true);
                     setTimeout(() => setAnswerError(false), 1500);
                   }
-                }} className="w-full relative">
-                  <input 
-                    type="text" 
-                    placeholder="ENTER PASSKEY"
-                    value={answerInput}
-                    onChange={(e) => setAnswerInput(e.target.value)}
-                    className={`w-full pl-6 pr-24 py-4 bg-black border ${answerError ? 'border-red-500 text-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-zinc-700 text-white focus:border-zinc-400 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]'} outline-none tracking-widest uppercase transition-all placeholder:text-zinc-700`}
-                  />
-                  <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-zinc-900 text-zinc-300 text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-700">
-                    Verify
+                }} className="w-full mt-8">
+                  <div className="relative">
+                    <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${answerError ? 'text-red-500' : 'text-zinc-600'}`} />
+                    <input 
+                      type="text" 
+                      placeholder="ENTER PASSKEY"
+                      value={answerInput}
+                      onChange={(e) => setAnswerInput(e.target.value)}
+                      className={`w-full pl-12 pr-6 py-4 bg-black border ${answerError ? 'border-red-500 text-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-zinc-700 text-white focus:border-zinc-400 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]'} outline-none tracking-widest uppercase transition-all text-center placeholder:text-zinc-800`}
+                    />
+                    {answerError && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500">
+                        <AlertTriangle className="w-4 h-4" />
+                      </div>
+                    )}
+                  </div>
+                  <button type="submit" className="w-full mt-4 py-4 bg-zinc-200 text-black font-bold tracking-widest uppercase hover:bg-white transition-all active:scale-[0.98]">
+                    Verify Passkey
                   </button>
-                  {answerError && (
-                    <div className="absolute right-24 top-1/2 -translate-y-1/2 text-red-500">
-                      <AlertTriangle className="w-4 h-4" />
-                    </div>
-                  )}
                 </form>
               </div>
             </motion.div>
