@@ -94,32 +94,47 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  {editingData?.options.map((opt, oIdx) => (
-                    <div key={oIdx} className="space-y-2">
-                      <label className="text-xs text-zinc-500 uppercase tracking-widest">Option {oIdx + 1}</label>
-                      <input 
-                        type="text" 
-                        className="w-full bg-black border border-zinc-700 px-3 py-2 text-white" 
-                        value={opt} 
-                        onChange={e => {
-                          const newOpts = [...editingData.options];
-                          newOpts[oIdx] = e.target.value;
-                          setEditingData({...editingData, options: newOpts});
-                        }} 
-                      />
+                {sessionNumber === 1 ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      {editingData?.options.map((opt, oIdx) => (
+                        <div key={oIdx} className="space-y-2">
+                          <label className="text-xs text-zinc-500 uppercase tracking-widest">Option {oIdx + 1}</label>
+                          <input 
+                            type="text" 
+                            className="w-full bg-black border border-zinc-700 px-3 py-2 text-white" 
+                            value={opt} 
+                            onChange={e => {
+                              const newOpts = [...editingData.options];
+                              newOpts[oIdx] = e.target.value;
+                              setEditingData({...editingData, options: newOpts});
+                            }} 
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-widest">Correct Answer</label>
-                  <select className="w-full bg-black border border-zinc-700 px-3 py-2 text-white" value={editingData?.answer} onChange={e => setEditingData({...editingData!, answer: e.target.value})}>
-                    {editingData?.options.map((opt, oIdx) => (
-                      <option key={oIdx} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
+                    <div className="space-y-2 mt-4">
+                      <label className="text-xs text-zinc-500 uppercase tracking-widest">Correct Answer</label>
+                      <select className="w-full bg-black border border-zinc-700 px-3 py-2 text-white" value={editingData?.answer} onChange={e => setEditingData({...editingData!, answer: e.target.value})}>
+                        {editingData?.options.map((opt, oIdx) => (
+                          <option key={oIdx} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2 mt-4">
+                    <label className="text-xs text-zinc-500 uppercase tracking-widest">Passkey (Correct Answer)</label>
+                    <input 
+                      type="text" 
+                      className="w-full bg-black border border-zinc-700 px-3 py-2 text-white font-mono uppercase tracking-widest" 
+                      value={editingData?.answer} 
+                      onChange={e => setEditingData({...editingData!, answer: e.target.value})}
+                      placeholder="ENTER PASSKEY"
+                    />
+                  </div>
+                )}
 
                 <div className="flex gap-4 justify-end mt-4">
                   <button onClick={() => setEditingId(null)} className="text-zinc-500 hover:text-white uppercase text-xs font-bold tracking-widest">Cancel</button>
@@ -133,13 +148,19 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
                     <p className="text-zinc-200 text-lg mb-2"><span className="text-zinc-500">Q{idx + 1}.</span> {q.text}</p>
                     {q.mediaUrl && <p className="text-xs text-blue-400 truncate max-w-lg mb-4">{q.mediaUrl}</p>}
                     
-                    <div className="grid grid-cols-2 gap-2 mt-4">
-                      {q.options.map((opt, oIdx) => (
-                        <div key={oIdx} className={`px-3 py-2 border ${opt === q.answer ? 'border-green-500/50 bg-green-950/20 text-green-400' : 'border-zinc-800 bg-black text-zinc-500'}`}>
-                          {opt}
-                        </div>
-                      ))}
-                    </div>
+                    {sessionNumber === 1 ? (
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        {q.options.map((opt, oIdx) => (
+                          <div key={oIdx} className={`px-3 py-2 border ${opt === q.answer ? 'border-green-500/50 bg-green-950/20 text-green-400' : 'border-zinc-800 bg-black text-zinc-500'}`}>
+                            {opt}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-4 px-3 py-2 border border-green-500/50 bg-green-950/20 text-green-400 font-mono text-sm inline-block">
+                        Passkey: <span className="font-bold">{q.answer}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col gap-3">
                     <button onClick={() => { setEditingId(q.id); setEditingData(q); }} className="text-blue-500 hover:text-blue-400 p-2 border border-zinc-800 bg-black"><Edit2 className="w-4 h-4"/></button>

@@ -17,11 +17,14 @@ export default function SessionTwo() {
   const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
   
   const [customImageUrl, setCustomImageUrl] = useState("");
+  const [answerInput, setAnswerInput] = useState("");
+  const [answerError, setAnswerError] = useState(false);
 
   useEffect(() => {
     const override = localStorage.getItem(`s2_img_${currentIndex + 1}`);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCustomImageUrl(override || "");
+    setAnswerInput("");
   }, [currentIndex]);
   
   const [isCompleted, setIsCompleted] = useState(false);
@@ -200,20 +203,33 @@ export default function SessionTwo() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                  {currentQ.options.map((option, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleOptionSelect(option, idx)}
-                      className="p-5 border transition-all text-left flex items-center gap-4 group bg-black border-zinc-800 hover:border-zinc-500 hover:bg-zinc-900 text-zinc-300"
-                    >
-                      <span className="text-xs font-bold tracking-widest uppercase text-zinc-600 group-hover:text-zinc-400">
-                        {String.fromCharCode(65 + idx)} /
-                      </span>
-                      <span className="tracking-widest uppercase">{option}</span>
-                    </button>
-                  ))}
-                </div>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (answerInput.trim().toUpperCase() === currentQ.answer.toUpperCase()) {
+                    handleOptionSelect(currentQ.answer, 0);
+                    setAnswerInput("");
+                    setAnswerError(false);
+                  } else {
+                    setAnswerError(true);
+                    setTimeout(() => setAnswerError(false), 1500);
+                  }
+                }} className="w-full relative mt-4">
+                  <input 
+                    type="text" 
+                    placeholder="ENTER PASSKEY"
+                    value={answerInput}
+                    onChange={(e) => setAnswerInput(e.target.value)}
+                    className={`w-full pl-6 pr-24 py-4 bg-black border ${answerError ? 'border-red-500 text-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)]' : 'border-zinc-700 text-white focus:border-zinc-400 focus:shadow-[0_0_15px_rgba(255,255,255,0.1)]'} outline-none tracking-widest uppercase transition-all placeholder:text-zinc-700`}
+                  />
+                  <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-2 bg-zinc-900 text-zinc-300 text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 hover:text-white transition-colors border border-zinc-700">
+                    Verify
+                  </button>
+                  {answerError && (
+                    <div className="absolute right-24 top-1/2 -translate-y-1/2 text-red-500">
+                      <AlertTriangle className="w-4 h-4" />
+                    </div>
+                  )}
+                </form>
               </div>
             </motion.div>
           )}
