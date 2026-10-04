@@ -10,10 +10,38 @@ export default function SessionFourFinale() {
   const router = useRouter();
   const [team, setTeam] = useState<{ teamAlias: string; college: string } | null>(null);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("STANDBY");
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [masterPasskey, setMasterPasskey] = useState("OVERRIDE-INIT");
+
+  useEffect(() => {
+    if (isSuccess || sessionStatus !== "ACTIVE") return;
+
+    let endTimeStr = localStorage.getItem("session_4_endtime");
+    let endTimestamp = 0;
+    if (!endTimeStr) {
+      endTimestamp = Date.now() + 1500 * 1000; // 25 minutes
+      localStorage.setItem("session_4_endtime", endTimestamp.toString());
+    } else {
+      endTimestamp = parseInt(endTimeStr);
+    }
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.floor((endTimestamp - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        setSessionStatus("ENDED");
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [isSuccess, sessionStatus]);
+
+
 
   // We fetch passkeys from localStorage (these are what the participants would have unlocked in previous rounds)
   const [passkeys, setPasskeys] = useState({
@@ -63,6 +91,7 @@ export default function SessionFourFinale() {
           localStorage.removeItem("cyberhunt_session_states");
           localStorage.removeItem("cyberhunt_current_session");
           localStorage.removeItem("session_4_completed");
+          localStorage.removeItem("session_4_endtime");
           window.location.href = "/";
           return;
         }
@@ -127,6 +156,17 @@ export default function SessionFourFinale() {
     );
   }
 
+  if (sessionStatus === "ENDED") {
+    return (
+      <div className="min-h-screen bg-black text-red-500 font-mono flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold uppercase tracking-widest mb-4">TIME EXPIRED</h1>
+          <p className="text-sm tracking-widest">The final override window has closed.</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim().toUpperCase() === masterPasskey.toUpperCase()) {
@@ -183,7 +223,14 @@ export default function SessionFourFinale() {
           <Shield className="w-8 h-8" />
           <div>
             <h1 className="text-2xl font-bold tracking-widest uppercase">Finale</h1>
-            <p className="text-xs text-green-700 tracking-widest">System Override Initiated</p>
+            <p className="text-xs text-green-700 tracking-widest flex items-center gap-4">
+              System Override Initiated
+              {timeLeft !== null && (
+                <span className={`font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-green-500'}`}>
+                  TIME REMAINING: {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+                </span>
+              )}
+            </p>
           </div>
         </div>
         <div className="text-right border border-green-900 bg-green-950/20 px-4 py-2">

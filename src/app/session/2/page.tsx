@@ -31,6 +31,32 @@ export default function SessionTwo() {
   const [passkey, setPasskey] = useState("");
   const [passkeyError, setPasskeyError] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (isCompleted || sessionStatus !== "ACTIVE") return;
+
+    let endTimeStr = localStorage.getItem("session_2_endtime");
+    let endTimestamp = 0;
+    if (!endTimeStr) {
+      endTimestamp = Date.now() + 1200 * 1000; // 20 minutes
+      localStorage.setItem("session_2_endtime", endTimestamp.toString());
+    } else {
+      endTimestamp = parseInt(endTimeStr);
+    }
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.floor((endTimestamp - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (remaining === 0) {
+        setIsCompleted(true);
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [isCompleted, sessionStatus]);
 
   useEffect(() => {
     const pollStatus = async () => {
@@ -55,6 +81,7 @@ export default function SessionTwo() {
           localStorage.removeItem("cyberhunt_session_states");
           localStorage.removeItem("cyberhunt_current_session");
           localStorage.removeItem("session_2_completed");
+          localStorage.removeItem("session_2_endtime");
           window.location.href = "/";
           return;
         }
@@ -171,8 +198,13 @@ export default function SessionTwo() {
             <span>CYBER<span className="text-zinc-500">HUNT</span></span>
           </div>
         </Link>
-        <div className="text-zinc-500 text-xs tracking-widest uppercase">
-          {isCompleted ? "SEASON_2 :: COMPLETE" : `SEASON_2 :: PHASE_${currentIndex + 1}`}
+        <div className="text-zinc-500 text-xs tracking-widest uppercase flex items-center gap-6">
+          {!isCompleted && timeLeft !== null && (
+            <div className={`font-bold text-sm ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-zinc-300'}`}>
+              TIME: {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+            </div>
+          )}
+          <span>{isCompleted ? "SEASON_2 :: COMPLETE" : `SEASON_2 :: PHASE_${currentIndex + 1}`}</span>
         </div>
       </nav>
 
