@@ -108,6 +108,15 @@ export default function AdminDashboard() {
         await supabase.from('teams').delete().eq('team_alias', teamToDelete.team_alias || teamToDelete.teamAlias);
       } catch(e) {}
     }
+    
+    // Update API memory state fallback
+    try {
+      await fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'delete_team', team_alias: teamToDelete.team_alias || teamToDelete.teamAlias })
+      });
+    } catch(e) {}
   };
 
   const handleSaveTeam = async (index: number) => {
@@ -133,6 +142,15 @@ export default function AdminDashboard() {
         }).eq('team_alias', editingTeamData.team_alias || editingTeamData.teamAlias);
       } catch(e) {}
     }
+
+    // Update API memory state fallback
+    try {
+      await fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'update_team', team: editingTeamData })
+      });
+    } catch(e) {}
   };
 
   useEffect(() => {
@@ -162,7 +180,7 @@ export default function AdminDashboard() {
         try {
           if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
             const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
-            if (data && data.length > 0) {
+            if (!error && data) {
               setTeams(filterRealTeams(data));
               setIsLoadingTeams(false);
               return;
