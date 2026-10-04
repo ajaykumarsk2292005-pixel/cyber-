@@ -120,6 +120,7 @@ export default function SessionFourFinale() {
 
   if (isSuccess) {
     return (
+      <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden" style={{ perspective: '1200px' }}>
         {/* The Entire 3D Scene */}
         <motion.div 
           initial={{ y: 200, opacity: 0, rotateX: 60, rotateZ: 0 }}
