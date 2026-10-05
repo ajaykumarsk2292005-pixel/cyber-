@@ -416,9 +416,11 @@ export default function AdminDashboard() {
                     const isEnded = status === "ENDED";
                     
                     let duration = "TBA";
-                    if (session === 1) duration = "15:00 MIN";
-                    if (session === 2) duration = "18:00 MIN";
-                    if (session === 3) duration = "20:00 MIN";
+                    let sessionPasskey = "N/A";
+                    if (session === 1) { duration = "10:00 MIN"; sessionPasskey = passkeys[1] || "SEASON2-ACCESS"; }
+                    if (session === 2) { duration = "20:00 MIN"; sessionPasskey = passkeys[2] || "SEASON3-ACCESS"; }
+                    if (session === 3) { duration = "25:00 MIN"; sessionPasskey = passkeys[3] || "SEASON4-ACCESS"; }
+                    if (session === 4) { duration = "25:00 MIN"; sessionPasskey = "N/A (Finale)"; }
 
                     return (
                       <div key={session} className={`flex flex-col p-4 border transition-all ${
@@ -445,6 +447,11 @@ export default function AdminDashboard() {
                                 {duration !== "TBA" && (
                                   <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-zinc-400 text-[9px] font-mono rounded-sm">
                                     {duration}
+                                  </span>
+                                )}
+                                {sessionPasskey !== "N/A" && (
+                                  <span className="px-2 py-0.5 bg-blue-900/30 border border-blue-800 text-blue-400 text-[9px] font-mono rounded-sm flex items-center gap-1">
+                                    <Lock className="w-2 h-2" /> PASSKEY: {sessionPasskey}
                                   </span>
                                 )}
                               </div>
