@@ -218,11 +218,12 @@ export default function AdminDashboard() {
               const rawAlias = t.team_alias || t.teamAlias || "";
               const alias = String(rawAlias).trim().toLowerCase();
               const memDelLower = memoryDeleted.map(d => String(d).trim().toLowerCase());
+              const locDelLower = localDeleted.map(d => String(d).trim().toLowerCase());
               
               return t.college !== 'SYS_STATE' && 
                      t.college !== 'SYS' &&
                      !memDelLower.includes(alias) &&
-                     !localDeleted.includes(alias);
+                     !locDelLower.includes(alias);
             });
           };
 
