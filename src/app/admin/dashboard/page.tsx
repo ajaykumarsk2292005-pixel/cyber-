@@ -191,9 +191,30 @@ export default function AdminDashboard() {
       const fetchTeams = async () => {
         setIsLoadingTeams(true);
         
+        let memoryDeleted: string[] = [];
+        let memoryTeams: any[] = [];
+
+        const filterRealTeams = (data: any[]) => {
+          let localDeleted: string[] = [];
+          try {
+            const parsed = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+            if (Array.isArray(parsed)) localDeleted = parsed;
+          } catch(e) {}
+          
+          return data.filter(t => {
+            const rawAlias = t.team_alias || t.teamAlias || "";
+            const alias = String(rawAlias).trim().toLowerCase();
+            const memDelLower = memoryDeleted.map(d => String(d).trim().toLowerCase());
+            const locDelLower = localDeleted.map(d => String(d).trim().toLowerCase());
+            
+            return t.college !== 'SYS_STATE' && 
+                   t.college !== 'SYS' &&
+                   !memDelLower.includes(alias) &&
+                   !locDelLower.includes(alias);
+          });
+        };
+
         try {
-          let memoryDeleted: string[] = [];
-          let memoryTeams: any[] = [];
           try {
             const res = await fetch('/api/state', { cache: 'no-store' });
             if (res.ok) {
@@ -206,26 +227,6 @@ export default function AdminDashboard() {
           } catch(e) {
             console.error("API fetch error", e);
           }
-
-          const filterRealTeams = (data: any[]) => {
-            let localDeleted: string[] = [];
-            try {
-              const parsed = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
-              if (Array.isArray(parsed)) localDeleted = parsed;
-            } catch(e) {}
-            
-            return data.filter(t => {
-              const rawAlias = t.team_alias || t.teamAlias || "";
-              const alias = String(rawAlias).trim().toLowerCase();
-              const memDelLower = memoryDeleted.map(d => String(d).trim().toLowerCase());
-              const locDelLower = localDeleted.map(d => String(d).trim().toLowerCase());
-              
-              return t.college !== 'SYS_STATE' && 
-                     t.college !== 'SYS' &&
-                     !memDelLower.includes(alias) &&
-                     !locDelLower.includes(alias);
-            });
-          };
 
           if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
             const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
