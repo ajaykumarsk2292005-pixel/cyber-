@@ -108,10 +108,18 @@ export default function AdminDashboard() {
     localStorage.setItem("cyberhunt_teams", JSON.stringify(updatedLocal));
 
     // Persistent Admin Blacklist
-    const localDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
-    localDeleted.push(teamToDelete.team_alias || teamToDelete.teamAlias);
-    localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify(localDeleted));
-    
+    try {
+      let localDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+      if (!Array.isArray(localDeleted)) localDeleted = [];
+      const aliasToBlock = String(teamToDelete.team_alias || teamToDelete.teamAlias || "").trim().toLowerCase();
+      if (aliasToBlock && !localDeleted.includes(aliasToBlock)) {
+        localDeleted.push(aliasToBlock);
+        localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify(localDeleted));
+      }
+    } catch(e) {
+      const aliasToBlock = String(teamToDelete.team_alias || teamToDelete.teamAlias || "").trim().toLowerCase();
+      if (aliasToBlock) localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify([aliasToBlock]));
+    }
     // Update Supabase if connected
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
       try {
@@ -200,12 +208,20 @@ export default function AdminDashboard() {
           }
 
           const filterRealTeams = (data: any[]) => {
-            const localDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+            let localDeleted: string[] = [];
+            try {
+              const parsed = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+              if (Array.isArray(parsed)) localDeleted = parsed;
+            } catch(e) {}
+            
             return data.filter(t => {
-              const alias = t.team_alias || t.teamAlias;
+              const rawAlias = t.team_alias || t.teamAlias || "";
+              const alias = String(rawAlias).trim().toLowerCase();
+              const memDelLower = memoryDeleted.map(d => String(d).trim().toLowerCase());
+              
               return t.college !== 'SYS_STATE' && 
                      t.college !== 'SYS' &&
-                     !memoryDeleted.includes(alias) &&
+                     !memDelLower.includes(alias) &&
                      !localDeleted.includes(alias);
             });
           };
