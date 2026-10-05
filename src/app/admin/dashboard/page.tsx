@@ -763,7 +763,7 @@ export default function AdminDashboard() {
                         return a.totalTime - b.totalTime;
                       })
                       .map((t, i) => (
-                      <div key={i} className={`flex items-center justify-between p-4 border ${i === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : i === 1 ? 'bg-zinc-300/10 border-zinc-400/50' : i === 2 ? 'bg-amber-700/10 border-amber-600/50' : 'bg-zinc-900 border-zinc-800'}`}>
+                      <motion.div layout key={t.team_alias || t.teamAlias || i} className={`flex items-center justify-between p-4 border ${i === 0 ? 'bg-yellow-500/10 border-yellow-500/50' : i === 1 ? 'bg-zinc-300/10 border-zinc-400/50' : i === 2 ? 'bg-amber-700/10 border-amber-600/50' : 'bg-zinc-900 border-zinc-800'}`}>
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center gap-4">
                             <div className={`font-mono text-lg font-bold w-6 text-center ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-zinc-300' : i === 2 ? 'text-amber-600' : 'text-zinc-500'}`}>
@@ -797,7 +797,7 @@ export default function AdminDashboard() {
                             {t.status === 'COMPLETED' ? 'System Conquered' : t.status === 'DISQUALIFIED' ? 'Terminated' : 'Infiltrating'}
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
