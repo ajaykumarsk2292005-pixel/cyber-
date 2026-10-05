@@ -224,11 +224,11 @@ export default function SessionTwo() {
         </div>
       </nav>
 
-      {/* MASSIVE VISIBLE TIMER */}
+      {/* CORNER TIMER */}
       {!isCompleted && (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center">
+        <div className="fixed top-8 right-8 z-50 pointer-events-none flex flex-col items-end">
           <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1 font-bold">Time Remaining</div>
-          <div className={`text-4xl md:text-5xl font-black tracking-widest ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]'}`}>
+          <div className={`text-2xl font-mono font-black tracking-widest ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-zinc-300 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]'}`}>
             {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
           </div>
         </div>
