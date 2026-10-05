@@ -10,7 +10,7 @@ export default function SessionFourFinale() {
   const router = useRouter();
   const [team, setTeam] = useState<{ teamAlias: string; college: string } | null>(null);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("STANDBY");
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(1500);
   const [inputValue, setInputValue] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -246,11 +246,6 @@ export default function SessionFourFinale() {
             <h1 className="text-2xl font-bold tracking-widest uppercase">Finale</h1>
             <p className="text-xs text-green-700 tracking-widest flex items-center gap-4">
               System Override Initiated
-              {timeLeft !== null && (
-                <span className={`font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-green-500'}`}>
-                  TIME REMAINING: {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
-                </span>
-              )}
             </p>
           </div>
         </div>
@@ -260,6 +255,14 @@ export default function SessionFourFinale() {
           <div className="text-[10px] text-green-700">{team?.college || "NODE"}</div>
         </div>
       </header>
+
+      {/* MASSIVE VISIBLE TIMER */}
+      <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center">
+        <div className="text-[10px] uppercase tracking-widest text-green-700 mb-1 font-bold">Time Remaining</div>
+        <div className={`text-4xl md:text-5xl font-black tracking-widest ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.5)]'}`}>
+          {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+        </div>
+      </div>
 
       <main className="relative z-10 max-w-4xl mx-auto space-y-8">
         <motion.div 
