@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
-import { fetchSessionState } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskey } from "@/lib/stateSync";
 
 export default function SessionThree() {
   const router = useRouter();
@@ -35,6 +35,16 @@ export default function SessionThree() {
   const [timeLeft, setTimeLeft] = useState<number>(1500);
 
   useEffect(() => {
+    if (localStorage.getItem("session_3_completed") === "true") {
+      setIsCompleted(true);
+    }
+    const currentSession = parseInt(localStorage.getItem("cyberhunt_current_session") || "1");
+    if (currentSession !== 3) {
+      router.replace(currentSession >= 5 ? "/leaderboard-wait" : `/session/${currentSession}`);
+    }
+  }, [router]);
+
+  useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
     let endTimeStr = localStorage.getItem("session_3_endtime");
@@ -51,6 +61,7 @@ export default function SessionThree() {
       setTimeLeft(remaining);
       if (remaining === 0) {
         setIsCompleted(true);
+        localStorage.setItem("session_3_completed", "true");
       }
     };
 
@@ -102,11 +113,14 @@ export default function SessionThree() {
     };
     pollStatus();
     
-    // Load questions dynamically
-    setQuestions(getQuestions(3));
+    const fetchQ = async () => {
+      const q = await getQuestions(3);
+      setQuestions(q);
+    };
+    fetchQ();
 
     const interval = setInterval(pollStatus, 2000);
-    const handleStorage = () => { pollStatus(); setQuestions(getQuestions(3)); };
+    const handleStorage = () => { pollStatus(); fetchQ(); };
     window.addEventListener("storage", handleStorage);
     return () => { clearInterval(interval); window.removeEventListener("storage", handleStorage); };
   }, []);
@@ -144,12 +158,18 @@ export default function SessionThree() {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsCompleted(true);
+      localStorage.setItem("session_3_completed", "true");
     }
   };
 
+  const [isSubmittingPasskey, setIsSubmittingPasskey] = useState(false);
+
   const handlePasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const expectedPasskey = localStorage.getItem("passkey_3") || "SEASON4-ACCESS";
+    if (isSubmittingPasskey) return;
+    setIsSubmittingPasskey(true);
+    const remotePasskey = await fetchSessionPasskey(3);
+    const expectedPasskey = remotePasskey || localStorage.getItem("passkey_3") || "SEASON4-ACCESS";
 
     if (passkey.toUpperCase() === expectedPasskey.toUpperCase()) { 
       // Calculate Score
@@ -179,6 +199,7 @@ export default function SessionThree() {
       setPasskeyError(true);
       setTimeout(() => setPasskeyError(false), 1500);
     }
+    setIsSubmittingPasskey(false);
   };
 
   return (
@@ -261,18 +282,41 @@ export default function SessionThree() {
                 </div>
                 
                 <div className="flex-1 relative bg-zinc-950 flex items-center justify-center overflow-hidden border border-zinc-900 group">
-                  {currentQ?.mediaUrl ? (
-                    <video 
-                      src={customVideoUrl || currentQ.mediaUrl} 
-                      controls
-                      className="w-full h-full object-contain opacity-90 transition-opacity duration-300 relative z-20"
-                      poster={`https://placehold.co/800x450/111/333?text=LOADING+SURVEILLANCE+FEED...`}
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  ) : (
-                    <div className="text-zinc-500 font-mono text-xs uppercase tracking-widest h-full w-full flex items-center justify-center min-h-[300px]">No Media</div>
-                  )}
+                  {(() => {
+                    const urlToUse = customVideoUrl || currentQ?.mediaUrl;
+                    if (!urlToUse) return <div className="text-zinc-500 font-mono text-xs uppercase tracking-widest h-full w-full flex items-center justify-center min-h-[300px]">No Media</div>;
+                    
+                    if (urlToUse.includes('youtube.com') || urlToUse.includes('youtu.be')) {
+                      let videoId = '';
+                      if (urlToUse.includes('youtube.com/watch?v=')) {
+                        videoId = urlToUse.split('v=')[1].split('&')[0];
+                      } else if (urlToUse.includes('youtu.be/')) {
+                        videoId = urlToUse.split('youtu.be/')[1].split('?')[0];
+                      }
+                      
+                      if (videoId) {
+                        return (
+                          <iframe
+                            src={`https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0`}
+                            className="w-full h-full object-contain relative z-20 min-h-[400px]"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        );
+                      }
+                    }
+
+                    return (
+                      <video 
+                        src={urlToUse} 
+                        controls
+                        className="w-full h-full object-contain opacity-90 transition-opacity duration-300 relative z-20"
+                        poster={`https://placehold.co/800x450/111/333?text=LOADING+SURVEILLANCE+FEED...`}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                    );
+                  })()}
                   {/* Subtle Scanline overlay on top of video container, below video controls if possible. Since video controls overlay everything, this sits below the video but adds a tint */}
                   <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] z-10 mix-blend-overlay" />
                 </div>

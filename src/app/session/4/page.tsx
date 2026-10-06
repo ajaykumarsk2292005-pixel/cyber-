@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Shield, KeyRound, Terminal, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { fetchSessionState } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskey } from "@/lib/stateSync";
 
 export default function SessionFourFinale() {
   const router = useRouter();
@@ -15,6 +15,7 @@ export default function SessionFourFinale() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [masterPasskey, setMasterPasskey] = useState("OVERRIDE-INIT");
+  const [isSubmittingPasskey, setIsSubmittingPasskey] = useState(false);
 
   useEffect(() => {
     if (isSuccess || sessionStatus !== "ACTIVE") return;
@@ -40,9 +41,12 @@ export default function SessionFourFinale() {
     const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
   }, [isSuccess, sessionStatus]);
-
-
-
+  useEffect(() => {
+    const currentSession = parseInt(localStorage.getItem("cyberhunt_current_session") || "1");
+    if (currentSession !== 4) {
+      router.replace(currentSession >= 5 ? "/leaderboard-wait" : `/session/${currentSession}`);
+    }
+  }, [router]);
   // We fetch passkeys from localStorage (these are what the participants would have unlocked in previous rounds)
   const [passkeys, setPasskeys] = useState({
     1: "???",
@@ -58,19 +62,23 @@ export default function SessionFourFinale() {
     }
     setTeam(JSON.parse(saved));
 
-    // Try to load any passkeys they unlocked
-    const p1 = localStorage.getItem("passkey_1");
-    const p2 = localStorage.getItem("passkey_2");
-    const p3 = localStorage.getItem("passkey_3");
-    const p4 = localStorage.getItem("passkey_4");
-    
-    setPasskeys({
-      1: p1 || "SEASON2-ACCESS",
-      2: p2 || "SEASON3-ACCESS",
-      3: p3 || "SEASON4-ACCESS"
-    });
+    const loadHints = async () => {
+      const p1 = await fetchSessionPasskey(1);
+      const p2 = await fetchSessionPasskey(2);
+      const p3 = await fetchSessionPasskey(3);
+      const p4 = await fetchSessionPasskey(4);
 
-    if (p4) setMasterPasskey(p4);
+      setPasskeys({
+        1: p1 || localStorage.getItem("passkey_1") || "SEASON2-ACCESS",
+        2: p2 || localStorage.getItem("passkey_2") || "SEASON3-ACCESS",
+        3: p3 || localStorage.getItem("passkey_3") || "SEASON4-ACCESS"
+      });
+
+      if (p4 || localStorage.getItem("passkey_4")) {
+        setMasterPasskey(p4 || localStorage.getItem("passkey_4") || "OVERRIDE-INIT");
+      }
+    };
+    loadHints();
 
     const pollStatus = async () => {
       let finalStatus = null;
@@ -169,7 +177,12 @@ export default function SessionFourFinale() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputValue.trim().toUpperCase() === masterPasskey.toUpperCase()) {
+    if (isSubmittingPasskey) return;
+    setIsSubmittingPasskey(true);
+    const remotePasskey = await fetchSessionPasskey(4);
+    const expectedPasskey = remotePasskey || localStorage.getItem("passkey_4") || "OVERRIDE-INIT";
+
+    if (inputValue.trim().toUpperCase() === expectedPasskey.toUpperCase()) {
       setIsSuccess(true);
       setErrorMsg("");
 
@@ -207,6 +220,7 @@ export default function SessionFourFinale() {
       setErrorMsg("ACCESS DENIED: INCORRECT PASSKEY");
       setInputValue("");
     }
+    setIsSubmittingPasskey(false);
   };
 
   if (isSuccess) {

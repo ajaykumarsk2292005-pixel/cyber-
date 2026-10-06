@@ -88,3 +88,132 @@ export const fetchSessionState = async (sessionNumber: number): Promise<string |
     return null;
   }
 };
+
+export const broadcastSessionPasskey = async (sessionNumber: number, passkey: string) => {
+  try {
+    await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'update_passkey', session: sessionNumber.toString(), passkey })
+    });
+  } catch (e) {
+    console.error("API update error", e);
+  }
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
+    return;
+  }
+  try {
+    await supabase.from('sessions').update({ passkey }).eq('session_number', sessionNumber);
+  } catch (e) {
+    console.error("Broadcast passkey error", e);
+  }
+};
+
+export const fetchSessionPasskey = async (sessionNumber: number): Promise<string | null> => {
+  try {
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.passkeys && data.passkeys[sessionNumber.toString()]) {
+         return data.passkeys[sessionNumber.toString()];
+      }
+    }
+  } catch (e) {
+    console.error("API fetch error", e);
+  }
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
+    return null;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('passkey')
+      .eq('session_number', sessionNumber)
+      .single();
+      
+    return data?.passkey || null;
+  } catch (e) {
+    console.error("Fetch error", e);
+    return null;
+  }
+};
+
+export const broadcastSessionQuestions = async (sessionNumber: number, questions: any[]) => {
+  try {
+    await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'update_questions', session: sessionNumber.toString(), questions })
+    });
+  } catch (e) {
+    console.error("API update error", e);
+  }
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
+    return;
+  }
+  try {
+    const { supabase } = require("@/lib/supabase");
+    await supabase.from('questions').delete().eq('session_number', sessionNumber);
+    if (questions.length > 0) {
+      const inserts = questions.map((q, idx) => ({
+        session_number: sessionNumber,
+        question_index: idx,
+        text: q.text,
+        options: q.options,
+        answer: q.answer,
+        media_url: q.mediaUrl || null
+      }));
+      await supabase.from('questions').insert(inserts);
+    }
+  } catch (e) {
+    console.error("Broadcast questions error", e);
+  }
+};
+
+export const fetchSessionQuestions = async (sessionNumber: number): Promise<any[] | null> => {
+  try {
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.questions && data.questions[sessionNumber.toString()]) {
+         return data.questions[sessionNumber.toString()];
+      }
+    }
+  } catch (e) {
+    console.error("API fetch error", e);
+  }
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
+    return null;
+  }
+  try {
+    const { supabase } = require("@/lib/supabase");
+    const { data, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('session_number', sessionNumber)
+      .order('question_index', { ascending: true });
+      
+    if (error) {
+      console.error("Supabase questions fetch error", error);
+      return null;
+    }
+
+    if (data) {
+      return data.map((q: any) => ({
+        id: q.id,
+        text: q.text,
+        options: q.options,
+        answer: q.answer,
+        mediaUrl: q.media_url
+      }));
+    }
+    return [];
+  } catch (e) {
+    console.error("Fetch error", e);
+    return null;
+  }
+};

@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { getQuestions, saveQuestions, Question } from "@/lib/questions";
-import { FileText, Save, Plus, Trash2, Edit2 } from "lucide-react";
+import { fetchSessionPasskey, broadcastSessionPasskey } from "@/lib/stateSync";
+import { FileText, Save, Plus, Trash2, Edit2, Upload, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -12,43 +14,88 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
   const [passkey, setPasskey] = useState("");
   const [isEditingPasskey, setIsEditingPasskey] = useState(false);
   const [tempPasskey, setTempPasskey] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    setQuestions(getQuestions(sessionNumber));
-    const savedPasskey = localStorage.getItem(`passkey_${sessionNumber}`);
-    if (savedPasskey) {
-      setPasskey(savedPasskey);
-    } else {
-      // Defaults
-      if (sessionNumber === 1) setPasskey("SEASON2-ACCESS");
-      if (sessionNumber === 2) setPasskey("SEASON3-ACCESS");
-      if (sessionNumber === 3) setPasskey("SEASON4-ACCESS");
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingData) return;
+    
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+
+      const { error } = await supabase.storage
+        .from('cyberhunt-media')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('cyberhunt-media')
+        .getPublicUrl(fileName);
+
+      setEditingData({...editingData, mediaUrl: publicUrl});
+    } catch (error: any) {
+      alert("Error uploading media: " + error.message);
+    } finally {
+      setIsUploading(false);
     }
-  }, [sessionNumber]);
-
-  const handleSavePasskey = () => {
-    setPasskey(tempPasskey);
-    localStorage.setItem(`passkey_${sessionNumber}`, tempPasskey);
-    setIsEditingPasskey(false);
   };
 
-  const handleSave = (index: number) => {
+  useEffect(() => {
+    const fetchQ = async () => {
+      const q = await getQuestions(sessionNumber);
+      setQuestions(q);
+    };
+    fetchQ();
+    const loadPasskey = async () => {
+      const savedPasskey = await fetchSessionPasskey(sessionNumber);
+      if (savedPasskey) {
+        setPasskey(savedPasskey);
+      } else {
+        const local = localStorage.getItem(`passkey_${sessionNumber}`);
+        if (local) {
+          setPasskey(local);
+        } else {
+          // Defaults
+          if (sessionNumber === 1) setPasskey("SEASON2-ACCESS");
+          if (sessionNumber === 2) setPasskey("SEASON3-ACCESS");
+          if (sessionNumber === 3) setPasskey("SEASON4-ACCESS");
+        }
+      }
+    };
+    loadPasskey();
+  }, [sessionNumber]);
+
+  const [passkeySuccess, setPasskeySuccess] = useState(false);
+
+  const handleSavePasskey = async () => {
+    setPasskey(tempPasskey);
+    await broadcastSessionPasskey(sessionNumber, tempPasskey);
+    localStorage.setItem(`passkey_${sessionNumber}`, tempPasskey);
+    setIsEditingPasskey(false);
+    setPasskeySuccess(true);
+    setTimeout(() => setPasskeySuccess(false), 2000);
+  };
+
+  const handleSave = async (index: number) => {
     if (!editingData) return;
     const newQs = [...questions];
     newQs[index] = editingData;
     setQuestions(newQs);
-    saveQuestions(sessionNumber, newQs);
+    await saveQuestions(sessionNumber, newQs);
     setEditingId(null);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!confirm("Delete this question?")) return;
     const newQs = questions.filter(q => q.id !== id);
     setQuestions(newQs);
-    saveQuestions(sessionNumber, newQs);
+    await saveQuestions(sessionNumber, newQs);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
     const newQ: Question = {
       id: newId,
@@ -59,7 +106,7 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
     };
     const newQs = [...questions, newQ];
     setQuestions(newQs);
-    saveQuestions(sessionNumber, newQs);
+    await saveQuestions(sessionNumber, newQs);
     setEditingId(newId);
     setEditingData(newQ);
   };
@@ -90,7 +137,14 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
                 {sessionNumber !== 1 && (
                   <div className="space-y-2">
                     <label className="text-xs text-zinc-500 uppercase tracking-widest">Media URL (Image/Video)</label>
-                    <input type="text" className="w-full bg-black border border-zinc-700 px-3 py-2 text-white" value={editingData?.mediaUrl || ""} onChange={e => setEditingData({...editingData!, mediaUrl: e.target.value})} />
+                    <div className="flex gap-2">
+                      <input type="text" className="flex-1 bg-black border border-zinc-700 px-3 py-2 text-white" value={editingData?.mediaUrl || ""} onChange={e => setEditingData({...editingData!, mediaUrl: e.target.value})} placeholder="https://..." />
+                      <label className="cursor-pointer bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 px-4 py-2 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-300 transition-colors">
+                        {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        Upload
+                        <input type="file" accept="image/*,video/*" className="hidden" onChange={handleImageUpload} disabled={isUploading} />
+                      </label>
+                    </div>
                   </div>
                 )}
 
@@ -183,6 +237,9 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
             </p>
           </div>
           <div className="mt-4 md:mt-0">
+            {passkeySuccess && (
+              <span className="text-green-500 text-xs mr-4 animate-pulse">Saved successfully!</span>
+            )}
             {isEditingPasskey ? (
               <div className="flex items-center gap-2">
                 <input 

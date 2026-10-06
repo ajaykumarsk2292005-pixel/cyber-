@@ -24,6 +24,15 @@ export default function Register() {
     // Save locally for fallback/optimistic UI
     localStorage.setItem("cyberhunt_team", JSON.stringify(formData));
     localStorage.setItem("cyberhunt_current_session", "1");
+    localStorage.removeItem("session_1_endtime");
+    localStorage.removeItem("session_2_endtime");
+    localStorage.removeItem("session_3_endtime");
+    localStorage.removeItem("session_4_endtime");
+    localStorage.removeItem("session_1_completed");
+    localStorage.removeItem("session_2_completed");
+    localStorage.removeItem("session_3_completed");
+    localStorage.removeItem("session_4_completed");
+    localStorage.removeItem("cyberhunt_session_states");
     
     // Save ALL registrations locally for the admin dashboard fallback
     const existingTeams = JSON.parse(localStorage.getItem("cyberhunt_teams") || "[]");

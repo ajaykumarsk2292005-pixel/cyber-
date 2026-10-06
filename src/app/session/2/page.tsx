@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
-import { fetchSessionState } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskey } from "@/lib/stateSync";
 
 export default function SessionTwo() {
   const router = useRouter();
@@ -19,6 +19,16 @@ export default function SessionTwo() {
   const [customImageUrl, setCustomImageUrl] = useState("");
   const [answerInput, setAnswerInput] = useState("");
   const [answerError, setAnswerError] = useState(false);
+  
+  const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
+  const [isHoveringImage, setIsHoveringImage] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+    setZoomPos({ x, y });
+  };
 
   useEffect(() => {
     const override = localStorage.getItem(`s2_img_${currentIndex + 1}`);
@@ -32,6 +42,16 @@ export default function SessionTwo() {
   const [passkeyError, setPasskeyError] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
   const [timeLeft, setTimeLeft] = useState<number>(1200);
+
+  useEffect(() => {
+    if (localStorage.getItem("session_2_completed") === "true") {
+      setIsCompleted(true);
+    }
+    const currentSession = parseInt(localStorage.getItem("cyberhunt_current_session") || "1");
+    if (currentSession !== 2) {
+      router.replace(currentSession >= 5 ? "/leaderboard-wait" : `/session/${currentSession}`);
+    }
+  }, [router]);
 
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
@@ -50,6 +70,7 @@ export default function SessionTwo() {
       setTimeLeft(remaining);
       if (remaining === 0) {
         setIsCompleted(true);
+        localStorage.setItem("session_2_completed", "true");
       }
     };
 
@@ -101,11 +122,14 @@ export default function SessionTwo() {
     };
     pollStatus();
     
-    // Load questions dynamically
-    setQuestions(getQuestions(2));
+    const fetchQ = async () => {
+      const q = await getQuestions(2);
+      setQuestions(q);
+    };
+    fetchQ();
 
     const interval = setInterval(pollStatus, 2000);
-    const handleStorage = () => { pollStatus(); setQuestions(getQuestions(2)); };
+    const handleStorage = () => { pollStatus(); fetchQ(); };
     window.addEventListener("storage", handleStorage);
     return () => { clearInterval(interval); window.removeEventListener("storage", handleStorage); };
   }, []);
@@ -143,12 +167,18 @@ export default function SessionTwo() {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsCompleted(true);
+      localStorage.setItem("session_2_completed", "true");
     }
   };
 
+  const [isSubmittingPasskey, setIsSubmittingPasskey] = useState(false);
+
   const handlePasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const expectedPasskey = localStorage.getItem("passkey_2") || "SEASON3-ACCESS";
+    if (isSubmittingPasskey) return;
+    setIsSubmittingPasskey(true);
+    const remotePasskey = await fetchSessionPasskey(2);
+    const expectedPasskey = remotePasskey || localStorage.getItem("passkey_2") || "SEASON3-ACCESS";
     
     if (passkey.toUpperCase() === expectedPasskey.toUpperCase()) { 
       // Calculate Score
@@ -178,6 +208,7 @@ export default function SessionTwo() {
       setPasskeyError(true);
       setTimeout(() => setPasskeyError(false), 1500);
     }
+    setIsSubmittingPasskey(false);
   };
 
   return (
@@ -248,7 +279,7 @@ export default function SessionTwo() {
               className="w-full flex flex-col md:flex-row gap-8"
             >
               {/* Image Clue Section */}
-              <div className="flex-1 bg-black border border-zinc-800 shadow-2xl relative p-4 flex flex-col">
+              <div className="flex-[3] bg-black border border-zinc-800 shadow-2xl relative p-4 flex flex-col min-h-[300px]">
                 <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-zinc-500"></div>
                 <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-zinc-500"></div>
                 <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-zinc-500"></div>
@@ -259,13 +290,21 @@ export default function SessionTwo() {
                   <span>IMG_{currentIndex + 1}.DAT</span>
                 </div>
                 
-                <div className="flex-1 relative bg-zinc-950 flex items-center justify-center overflow-hidden border border-zinc-900 group">
+                <div 
+                  className="flex-1 relative bg-zinc-950 flex items-center justify-center overflow-hidden border border-zinc-900 cursor-crosshair"
+                  onMouseMove={handleMouseMove}
+                  onMouseEnter={() => setIsHoveringImage(true)}
+                  onMouseLeave={() => setIsHoveringImage(false)}
+                >
                   {/* Using standard img tag to avoid next/image domain restrictions for placehold.co */}
                   {currentQ?.mediaUrl ? (
                     <img 
                       src={customImageUrl || currentQ.mediaUrl} 
                       alt={`Clue ${currentIndex + 1}`}
-                      className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-700"
+                      style={{
+                        transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                      }}
+                      className={`w-full h-full object-cover transition-all duration-200 ${isHoveringImage ? 'scale-[3] opacity-100' : 'scale-100 opacity-80'}`}
                     />
                   ) : (
                     <div className="text-zinc-500 font-mono text-xs uppercase tracking-widest h-full w-full flex items-center justify-center">No Media</div>
@@ -276,7 +315,7 @@ export default function SessionTwo() {
               </div>
 
               {/* Question & Options Section */}
-              <div className="flex-1 flex flex-col justify-center">
+              <div className="flex-[2] flex flex-col justify-center">
                 <div className="mb-8 flex items-center gap-4">
                   <div className="w-12 h-12 bg-black border border-zinc-700 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(255,255,255,0.1)]">
                     {currentIndex + 1}

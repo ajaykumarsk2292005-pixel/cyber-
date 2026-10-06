@@ -3,10 +3,12 @@ import { NextResponse } from 'next/server';
 declare global {
   var __cyberhunt_state: {
     sessions: Record<string, string>;
+    passkeys: Record<string, string>;
     teams: any[];
     deleted_teams: string[];
     progress: Record<string, { session: number, question: number, timestamp: number }>;
     scores: Record<string, Record<string, { score: number, time_taken: number }>>;
+    questions: Record<string, any[]>;
   } | undefined;
 }
 
@@ -18,10 +20,16 @@ if (!globalThis.__cyberhunt_state) {
       "3": "STANDBY",
       "4": "STANDBY"
     },
+    passkeys: {
+      "1": "SEASON2-ACCESS",
+      "2": "SEASON3-ACCESS",
+      "3": "SEASON4-ACCESS"
+    },
     teams: [],
     deleted_teams: [],
     progress: {},
-    scores: {}
+    scores: {},
+    questions: {}
   };
 }
 
@@ -36,6 +44,14 @@ export async function POST(req: Request) {
     if (data.type === 'update_session') {
       globalThis.__cyberhunt_state!.sessions[data.session] = data.status;
     } 
+    else if (data.type === 'update_questions') {
+      if (!globalThis.__cyberhunt_state!.questions) globalThis.__cyberhunt_state!.questions = {};
+      globalThis.__cyberhunt_state!.questions[data.session] = data.questions;
+    }
+    else if (data.type === 'update_passkey') {
+      if (!globalThis.__cyberhunt_state!.passkeys) globalThis.__cyberhunt_state!.passkeys = {};
+      globalThis.__cyberhunt_state!.passkeys[data.session] = data.passkey;
+    }
     else if (data.type === 'register_team') {
       const exists = globalThis.__cyberhunt_state!.teams.find(
         t => t.team_alias === data.team.team_alias || t.teamAlias === data.team.teamAlias
@@ -51,6 +67,9 @@ export async function POST(req: Request) {
       globalThis.__cyberhunt_state!.teams = globalThis.__cyberhunt_state!.teams.filter(
         t => t.team_alias !== data.team_alias && t.teamAlias !== data.team_alias
       );
+    }
+    else if (data.type === 'sync_deleted_teams') {
+      globalThis.__cyberhunt_state!.deleted_teams = data.deleted_teams;
     }
     else if (data.type === 'update_team') {
       const idx = globalThis.__cyberhunt_state!.teams.findIndex(

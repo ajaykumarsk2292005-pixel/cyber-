@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
-import { fetchSessionState } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskey } from "@/lib/stateSync";
 
 export default function SessionOne() {
   const router = useRouter();
@@ -20,6 +20,16 @@ export default function SessionOne() {
   const [passkeyError, setPasskeyError] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
   const [timeLeft, setTimeLeft] = useState<number>(600);
+
+  useEffect(() => {
+    if (localStorage.getItem("session_1_completed") === "true") {
+      setIsCompleted(true);
+    }
+    const currentSession = parseInt(localStorage.getItem("cyberhunt_current_session") || "1");
+    if (currentSession !== 1) {
+      router.replace(currentSession >= 5 ? "/leaderboard-wait" : `/session/${currentSession}`);
+    }
+  }, [router]);
 
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
@@ -38,6 +48,7 @@ export default function SessionOne() {
       setTimeLeft(remaining);
       if (remaining === 0) {
         setIsCompleted(true);
+        localStorage.setItem("session_1_completed", "true");
       }
     };
 
@@ -89,11 +100,14 @@ export default function SessionOne() {
     };
     pollStatus();
     
-    // Load questions dynamically
-    setQuestions(getQuestions(1));
+    const fetchQ = async () => {
+      const q = await getQuestions(1);
+      setQuestions(q);
+    };
+    fetchQ();
 
     const interval = setInterval(pollStatus, 2000);
-    const handleStorage = () => { pollStatus(); setQuestions(getQuestions(1)); };
+    const handleStorage = () => { pollStatus(); fetchQ(); };
     window.addEventListener("storage", handleStorage);
     return () => { clearInterval(interval); window.removeEventListener("storage", handleStorage); };
   }, []);
@@ -131,13 +145,19 @@ export default function SessionOne() {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsCompleted(true);
+      localStorage.setItem("session_1_completed", "true");
       // You could evaluate the score here by comparing submittedAnswers with questions.answer
     }
   };
 
+  const [isSubmittingPasskey, setIsSubmittingPasskey] = useState(false);
+
   const handlePasskeySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const expectedPasskey = localStorage.getItem("passkey_1") || "SEASON2-ACCESS";
+    if (isSubmittingPasskey) return;
+    setIsSubmittingPasskey(true);
+    const remotePasskey = await fetchSessionPasskey(1);
+    const expectedPasskey = remotePasskey || localStorage.getItem("passkey_1") || "SEASON2-ACCESS";
     
     if (passkey.toUpperCase() === expectedPasskey.toUpperCase()) { 
       // Calculate Score
@@ -169,6 +189,7 @@ export default function SessionOne() {
       setPasskeyError(true);
       setTimeout(() => setPasskeyError(false), 1500);
     }
+    setIsSubmittingPasskey(false);
   };
 
   return (

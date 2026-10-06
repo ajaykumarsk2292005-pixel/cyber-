@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { QuestionManager } from "@/components/QuestionManager";
-import { broadcastSessionState, fetchSessionState } from "@/lib/stateSync";
+import { broadcastSessionState, fetchSessionState, broadcastSessionPasskey, fetchSessionPasskey } from "@/lib/stateSync";
 
 interface Team {
   id?: number;
@@ -78,10 +78,11 @@ export default function AdminDashboard() {
     await broadcastSessionState(session, status);
   };
 
-  const [passkeys, setPasskeys] = useState({
+  const [passkeys, setPasskeys] = useState<Record<number, string>>({
     1: "SEASON2-ACCESS",
     2: "SEASON3-ACCESS",
-    3: "SEASON4-ACCESS"
+    3: "SEASON4-ACCESS",
+    4: "OVERRIDE-INIT"
   });
   
   const [editingPasskey, setEditingPasskey] = useState<number | null>(null);
@@ -172,109 +173,130 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    // Load custom passkeys if any
-    const p1 = localStorage.getItem("passkey_1");
-    const p2 = localStorage.getItem("passkey_2");
-    const p3 = localStorage.getItem("passkey_3");
-    if (p1 || p2 || p3) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    const loadPasskeys = async () => {
+      const p1 = await fetchSessionPasskey(1);
+      const p2 = await fetchSessionPasskey(2);
+      const p3 = await fetchSessionPasskey(3);
+      const p4 = await fetchSessionPasskey(4);
       setPasskeys({
-        1: p1 || "SEASON2-ACCESS",
-        2: p2 || "SEASON3-ACCESS",
-        3: p3 || "SEASON4-ACCESS"
+        1: p1 || localStorage.getItem("passkey_1") || "SEASON2-ACCESS",
+        2: p2 || localStorage.getItem("passkey_2") || "SEASON3-ACCESS",
+        3: p3 || localStorage.getItem("passkey_3") || "SEASON4-ACCESS",
+        4: p4 || localStorage.getItem("passkey_4") || "OVERRIDE-INIT"
       });
-    }
+    };
+    loadPasskeys();
   }, []);
 
-  useEffect(() => {
-    if (activeTab === "registrations" || activeTab === "leaderboard" || activeTab === "monitoring") {
-      const fetchTeams = async () => {
-        setIsLoadingTeams(true);
-        
-        let memoryDeleted: string[] = [];
-        let memoryTeams: any[] = [];
+  const fetchTeamsData = async () => {
+    if (isLoadingTeams) return;
+    setIsLoadingTeams(true);
+    
+    let memoryDeleted: string[] = [];
+    let memoryTeams: any[] = [];
 
-        const filterRealTeams = (data: any[]) => {
-          let localDeleted: string[] = [];
-          try {
-            const parsed = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
-            if (Array.isArray(parsed)) localDeleted = parsed;
-          } catch(e) {}
-          
-          return data.filter(t => {
-            const rawAlias = t.team_alias || t.teamAlias || "";
-            const alias = String(rawAlias).trim().toLowerCase();
-            const memDelLower = memoryDeleted.map(d => String(d).trim().toLowerCase());
-            const locDelLower = localDeleted.map(d => String(d).trim().toLowerCase());
-            
-            return t.college !== 'SYS_STATE' && 
-                   t.college !== 'SYS' &&
-                   !memDelLower.includes(alias) &&
-                   !locDelLower.includes(alias);
-          });
-        };
-
-        try {
-          try {
-            const res = await fetch('/api/state', { cache: 'no-store' });
-            if (res.ok) {
-              const memoryState = await res.json();
-              if (memoryState && memoryState.deleted_teams) memoryDeleted = memoryState.deleted_teams;
-              if (memoryState && memoryState.teams) memoryTeams = memoryState.teams;
-              if (memoryState && memoryState.progress) setProgressData(memoryState.progress);
-              if (memoryState && memoryState.scores) setScoresData(memoryState.scores);
-            }
-          } catch(e) {
-            console.error("API fetch error", e);
-          }
-
-          if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-            const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
-            if (!error && data) {
-              setTeams(filterRealTeams(data));
-              setIsLoadingTeams(false);
-              return;
-            }
-          }
-          
-          // Fallback to in-memory API first
-          if (memoryTeams && memoryTeams.length > 0) {
-            setTeams(filterRealTeams(memoryTeams.reverse()));
-            setIsLoadingTeams(false);
-            return;
-          }
-
-          // Ultimate Fallback to localStorage array if Supabase is empty, failing, or not configured
-          const localTeams = localStorage.getItem("cyberhunt_teams");
-            if (localTeams) {
-              setTeams(filterRealTeams(JSON.parse(localTeams).reverse()));
-            } else {
-              setTeams([]);
-            }
-        } catch (e) {
-          // Silently fail and fallback to localStorage
-          const localTeams = localStorage.getItem("cyberhunt_teams");
-          if (localTeams) {
-            setTeams(filterRealTeams(JSON.parse(localTeams).reverse()));
-          }
-        } finally {
-          setIsLoadingTeams(false);
-        }
-      };
+    const filterRealTeams = (data: any[]) => {
+      let localDeleted: string[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+        if (Array.isArray(parsed)) localDeleted = parsed;
+      } catch(e) {}
       
-      // Initial fetch
-      fetchTeams();
+      return data.filter(t => {
+        const rawAlias = t.team_alias || t.teamAlias || "";
+        const alias = String(rawAlias).trim().toLowerCase();
+        const memDelLower = memoryDeleted.map(d => String(d).trim().toLowerCase());
+        const locDelLower = localDeleted.map(d => String(d).trim().toLowerCase());
+        
+        return t.college !== 'SYS_STATE' && 
+               t.college !== 'SYS' &&
+               !memDelLower.includes(alias) &&
+               !locDelLower.includes(alias);
+      });
+    };
 
-      // Setup polling for live updates
-      const interval = setInterval(fetchTeams, 3000);
-      return () => clearInterval(interval);
+    try {
+      try {
+        const res = await fetch('/api/state', { cache: 'no-store' });
+        if (res.ok) {
+          const memoryState = await res.json();
+          if (memoryState && memoryState.deleted_teams) memoryDeleted = memoryState.deleted_teams;
+          if (memoryState && memoryState.teams) memoryTeams = memoryState.teams;
+          if (memoryState && memoryState.progress) setProgressData(memoryState.progress);
+          if (memoryState && memoryState.scores) setScoresData(memoryState.scores);
+        }
+      } catch(e) {
+        console.error("API fetch error", e);
+      }
+
+      // Sync local deleted teams back to API to ensure participants' leaderboard drops them properly
+      try {
+        const localDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+        if (Array.isArray(localDeleted) && localDeleted.length > 0) {
+          // Merge with memory deleted just in case
+          const mergedDeleted = Array.from(new Set([...memoryDeleted, ...localDeleted]));
+          await fetch('/api/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'sync_deleted_teams', deleted_teams: mergedDeleted })
+          });
+        }
+      } catch(e) {}
+
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
+        const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
+        if (!error && data) {
+          setTeams(filterRealTeams(data));
+          setIsLoadingTeams(false);
+          return;
+        }
+      }
+      
+      // Fallback to in-memory API first
+      if (memoryTeams && memoryTeams.length > 0) {
+        setTeams(filterRealTeams(memoryTeams.reverse()));
+        setIsLoadingTeams(false);
+        return;
+      }
+
+      // Ultimate Fallback to localStorage array if Supabase is empty, failing, or not configured
+      const localTeams = localStorage.getItem("cyberhunt_teams");
+      if (localTeams) {
+        setTeams(filterRealTeams(JSON.parse(localTeams).reverse()));
+      } else {
+        setTeams([]);
+      }
+    } catch (e) {
+      // Silently fail and fallback to localStorage
+      const localTeams = localStorage.getItem("cyberhunt_teams");
+      if (localTeams) {
+        setTeams(filterRealTeams(JSON.parse(localTeams).reverse()));
+      }
+    } finally {
+      setIsLoadingTeams(false);
     }
+  };
+
+  useEffect(() => {
+    // Always sync teams and deleted_teams on mount, then conditionally re-fetch on certain tabs
+    fetchTeamsData();
   }, [activeTab]);
 
-  const handleSavePasskey = (seasonId: number) => {
-    setPasskeys(prev => ({...prev, [seasonId]: tempPasskey}));
-    localStorage.setItem(`passkey_${seasonId}`, tempPasskey);
-    setEditingPasskey(null);
+  const [passkeySuccess, setPasskeySuccess] = useState<string | null>(null);
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+
+  const handleSavePasskey = async (seasonId: number) => {
+    try {
+      await broadcastSessionPasskey(seasonId, tempPasskey);
+      setPasskeys(prev => ({...prev, [seasonId]: tempPasskey}));
+      localStorage.setItem(`passkey_${seasonId}`, tempPasskey);
+      setEditingPasskey(null);
+      setPasskeySuccess(`Successfully updated passkey!`);
+      setTimeout(() => setPasskeySuccess(null), 3000);
+    } catch(e) {
+      setPasskeyError("Failed to update passkey.");
+      setTimeout(() => setPasskeyError(null), 3000);
+    }
   };
 
   const exportToCSV = (data: Team[], filename: string) => {
@@ -410,7 +432,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4">
-                  {[1, 2, 3, 4].map((session) => {
+                  {[1, 2, 3, 4, 5].map((session) => {
                     const status = sessionStates[session];
                     const isActive = status === "ACTIVE";
                     const isPaused = status === "PAUSED";
@@ -422,6 +444,7 @@ export default function AdminDashboard() {
                     if (session === 2) { duration = "20:00 MIN"; sessionPasskey = passkeys[2] || "SEASON3-ACCESS"; }
                     if (session === 3) { duration = "25:00 MIN"; sessionPasskey = passkeys[3] || "SEASON4-ACCESS"; }
                     if (session === 4) { duration = "25:00 MIN"; sessionPasskey = "N/A (Finale)"; }
+                    if (session === 5) { duration = "PERMANENT"; sessionPasskey = "N/A (Leaderboard Phase)"; }
 
                     return (
                       <div key={session} className={`flex flex-col p-4 border transition-all ${
@@ -443,7 +466,7 @@ export default function AdminDashboard() {
                             <div>
                               <div className="flex items-center gap-3">
                                 <h3 className="text-sm font-bold uppercase tracking-widest">
-                                  Session {session} {session === 1 ? "(Aptitude)" : session === 4 ? "(Finale)" : ""}
+                                  Session {session} {session === 1 ? "(Aptitude)" : session === 4 ? "(Finale)" : session === 5 ? "(Public Leaderboard)" : ""}
                                 </h3>
                                 {duration !== "TBA" && (
                                   <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-700 text-zinc-400 text-[9px] font-mono rounded-sm">
@@ -545,13 +568,23 @@ export default function AdminDashboard() {
                       Live feed of registered teams and their current status.
                     </p>
                   </div>
-                  <button 
-                    onClick={() => exportToCSV(teams, 'cyberhunt_registrations')}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-green-500 text-zinc-300 hover:text-green-400 font-mono text-xs uppercase tracking-widest transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export to Excel
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => fetchTeamsData()}
+                      disabled={isLoadingTeams}
+                      className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-blue-500 text-zinc-300 hover:text-blue-400 font-mono text-xs uppercase tracking-widest transition-colors disabled:opacity-50"
+                    >
+                      {isLoadingTeams ? <Activity className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                      Refresh
+                    </button>
+                    <button 
+                      onClick={() => exportToCSV(teams, 'cyberhunt_registrations')}
+                      className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-green-500 text-zinc-300 hover:text-green-400 font-mono text-xs uppercase tracking-widest transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export to Excel
+                    </button>
+                  </div>
                 </div>
 
                 {isLoadingTeams ? (
@@ -697,22 +730,19 @@ export default function AdminDashboard() {
                             className="bg-black border border-green-500/50 text-green-400 font-mono text-sm px-3 py-2 outline-none tracking-widest uppercase w-64"
                             placeholder="FINAL PASSWORD..."
                           />
-                          <button onClick={() => {
-                            localStorage.setItem("passkey_4", tempPasskey);
-                            setEditingPasskey(null);
-                          }} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors p-2"><Save className="w-4 h-4"/></button>
+                          <button onClick={() => handleSavePasskey(4)} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors p-2"><Save className="w-4 h-4"/></button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-4">
                           <div className="px-4 py-2 border border-zinc-800 bg-black min-w-[200px] text-center">
                             <span className="text-sm font-bold font-mono tracking-widest text-green-400">
-                              {typeof window !== 'undefined' ? (localStorage.getItem("passkey_4") || "OVERRIDE-INIT") : "OVERRIDE-INIT"}
+                              {passkeys[4] || (typeof window !== 'undefined' ? localStorage.getItem("passkey_4") : null) || "OVERRIDE-INIT"}
                             </span>
                           </div>
                           <button 
                             onClick={() => { 
                               setEditingPasskey(4); 
-                              setTempPasskey(typeof window !== 'undefined' ? (localStorage.getItem("passkey_4") || "OVERRIDE-INIT") : ""); 
+                              setTempPasskey(passkeys[4] || (typeof window !== 'undefined' ? (localStorage.getItem("passkey_4") || "OVERRIDE-INIT") : "")); 
                             }} 
                             className="bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-colors p-2"
                           >
@@ -738,13 +768,23 @@ export default function AdminDashboard() {
                       Live ranking of all participating nodes based on network infiltration status.
                     </p>
                   </div>
-                  <button 
-                    onClick={() => exportToCSV(teams, 'cyberhunt_leaderboard')}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-green-500 text-zinc-300 hover:text-green-400 font-mono text-xs uppercase tracking-widest transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export to Excel
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => fetchTeamsData()}
+                      disabled={isLoadingTeams}
+                      className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-blue-500 text-zinc-300 hover:text-blue-400 font-mono text-xs uppercase tracking-widest transition-colors disabled:opacity-50"
+                    >
+                      {isLoadingTeams ? <Activity className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                      Refresh
+                    </button>
+                    <button 
+                      onClick={() => exportToCSV(teams, 'cyberhunt_leaderboard')}
+                      className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-700 hover:border-green-500 text-zinc-300 hover:text-green-400 font-mono text-xs uppercase tracking-widest transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export to Excel
+                    </button>
+                  </div>
                 </div>
 
                 {teams.length === 0 ? (
