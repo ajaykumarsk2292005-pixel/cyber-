@@ -31,25 +31,40 @@ export default function LeaderboardWaitPage() {
           // Fetch memory state (for deleted teams and live scores)
           const res = await fetch('/api/state', { cache: 'no-store' });
           let memDeleted: string[] = [];
+          let allTeamsMap = new Map();
+          let memoryTeams: any[] = [];
           if (res.ok) {
             const memoryState = await res.json();
             if (memoryState && memoryState.deleted_teams) memDeleted = memoryState.deleted_teams;
             if (memoryState && memoryState.scores) setScoresData(memoryState.scores);
+            if (memoryState && memoryState.teams) memoryTeams = memoryState.teams;
+          }
+
+          if (Array.isArray(memoryTeams)) {
+            memoryTeams.forEach(t => {
+              const alias = t.team_alias || t.teamAlias;
+              if (alias) allTeamsMap.set(alias, t);
+            });
           }
 
           // Fetch DB teams
           if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
             const { data } = await supabase.from('teams').select('*');
             if (data) {
-               const memDelLower = memDeleted.map(d => String(d).trim().toLowerCase());
-               const validTeams = data.filter(t => {
-                 const rawAlias = t.team_alias || t.teamAlias || "";
-                 const alias = String(rawAlias).trim().toLowerCase();
-                 return t.college !== 'SYS_STATE' && t.college !== 'SYS' && !memDelLower.includes(alias);
-               });
-               setTeams(validTeams);
+              data.forEach(t => {
+                const alias = t.team_alias || t.teamAlias;
+                if (alias) allTeamsMap.set(alias, t);
+              });
             }
           }
+
+          const memDelLower = memDeleted.map(d => String(d).trim().toLowerCase());
+          const validTeams = Array.from(allTeamsMap.values()).filter(t => {
+            const rawAlias = t.team_alias || t.teamAlias || "";
+            const alias = String(rawAlias).trim().toLowerCase();
+            return t.college !== 'SYS_STATE' && t.college !== 'SYS' && !memDelLower.includes(alias);
+          });
+          setTeams(validTeams);
         } catch (e) {}
         setIsLoading(false);
       }

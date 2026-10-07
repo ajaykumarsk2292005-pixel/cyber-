@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getQuestions, saveQuestions, Question } from "@/lib/questions";
-import { fetchSessionPasskey, broadcastSessionPasskey } from "@/lib/stateSync";
+import { fetchSessionPasskey, broadcastSessionPasskey, fetchSessionPasskeyHint, broadcastSessionPasskeyHint } from "@/lib/stateSync";
 import { FileText, Save, Plus, Trash2, Edit2, Upload, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -12,8 +12,10 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
   const [editingData, setEditingData] = useState<Question | null>(null);
 
   const [passkey, setPasskey] = useState("");
+  const [passkeyHint, setPasskeyHint] = useState("");
   const [isEditingPasskey, setIsEditingPasskey] = useState(false);
   const [tempPasskey, setTempPasskey] = useState("");
+  const [tempPasskeyHint, setTempPasskeyHint] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,6 +66,20 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
           if (sessionNumber === 3) setPasskey("SEASON4-ACCESS");
         }
       }
+      
+      const savedPasskeyHint = await fetchSessionPasskeyHint(sessionNumber);
+      if (savedPasskeyHint) {
+        setPasskeyHint(savedPasskeyHint);
+      } else {
+        const local = localStorage.getItem(`passkey_hint_${sessionNumber}`);
+        if (local) {
+          setPasskeyHint(local);
+        } else {
+          if (sessionNumber === 1) setPasskeyHint("All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.");
+          if (sessionNumber === 2) setPasskeyHint("Visual reconnaissance complete. Target located. Awaiting Season 3 authentication passkey.");
+          if (sessionNumber === 3) setPasskeyHint("Critical infrastructure reached. System lockdown initiated. Final authentication required.");
+        }
+      }
     };
     loadPasskey();
   }, [sessionNumber]);
@@ -72,8 +88,11 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
 
   const handleSavePasskey = async () => {
     setPasskey(tempPasskey);
+    setPasskeyHint(tempPasskeyHint);
     await broadcastSessionPasskey(sessionNumber, tempPasskey);
+    await broadcastSessionPasskeyHint(sessionNumber, tempPasskeyHint);
     localStorage.setItem(`passkey_${sessionNumber}`, tempPasskey);
+    localStorage.setItem(`passkey_hint_${sessionNumber}`, tempPasskeyHint);
     setIsEditingPasskey(false);
     setPasskeySuccess(true);
     setTimeout(() => setPasskeySuccess(false), 2000);
@@ -227,42 +246,66 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
         ))}
       </div>
       <div className="mt-8 pt-6 border-t border-zinc-800 bg-black/50 p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+          <div className="flex-1">
             <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-100 mb-1">
-              Unlock Passkey (Hint)
+              Unlock Passkey & Hint
             </h3>
-            <p className="text-xs text-zinc-500 font-mono">
-              The secret passkey required to unlock the next session.
+            <p className="text-xs text-zinc-500 font-mono mb-4">
+              The secret passkey and the hint message shown to participants.
             </p>
+            
+            {!isEditingPasskey && (
+              <div className="space-y-4">
+                <div className="px-4 py-2 border border-zinc-800 bg-black inline-block">
+                  <span className="text-xs text-zinc-500 uppercase tracking-widest mr-2">Passkey:</span>
+                  <span className="text-sm font-bold font-mono tracking-widest text-green-400">{passkey}</span>
+                </div>
+                <div className="p-4 border border-zinc-800 bg-black/50">
+                  <span className="block text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Hint Message:</span>
+                  <span className="text-sm text-zinc-300 leading-relaxed font-mono">{passkeyHint}</span>
+                </div>
+              </div>
+            )}
+            
+            {isEditingPasskey && (
+              <div className="space-y-4 max-w-lg">
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Passkey</label>
+                  <input 
+                    type="text" 
+                    value={tempPasskey} 
+                    onChange={(e) => setTempPasskey(e.target.value)}
+                    className="w-full bg-black border border-green-500/50 text-green-400 font-mono text-sm px-3 py-2 outline-none tracking-widest uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Hint Message</label>
+                  <textarea 
+                    value={tempPasskeyHint} 
+                    onChange={(e) => setTempPasskeyHint(e.target.value)}
+                    className="w-full bg-black border border-zinc-700 text-zinc-300 font-mono text-sm px-3 py-2 outline-none resize-none h-24 focus:border-green-500/50 transition-colors"
+                  />
+                </div>
+              </div>
+            )}
           </div>
-          <div className="mt-4 md:mt-0">
+          <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">
             {passkeySuccess && (
-              <span className="text-green-500 text-xs mr-4 animate-pulse">Saved successfully!</span>
+              <span className="text-green-500 text-xs animate-pulse mb-2">Saved successfully!</span>
             )}
             {isEditingPasskey ? (
               <div className="flex items-center gap-2">
-                <input 
-                  type="text" 
-                  value={tempPasskey} 
-                  onChange={(e) => setTempPasskey(e.target.value)}
-                  className="bg-black border border-green-500/50 text-green-400 font-mono text-sm px-3 py-2 outline-none tracking-widest uppercase"
-                />
-                <button onClick={handleSavePasskey} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors p-2"><Save className="w-4 h-4"/></button>
-                <button onClick={() => setIsEditingPasskey(false)} className="bg-zinc-900 border border-zinc-700 text-zinc-500 hover:text-white transition-colors p-2"><Trash2 className="w-4 h-4"/></button>
+                <button onClick={handleSavePasskey} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors px-4 py-2 text-xs font-bold uppercase tracking-widest flex items-center gap-2"><Save className="w-4 h-4"/> Save</button>
+                <button onClick={() => setIsEditingPasskey(false)} className="bg-zinc-900 border border-zinc-700 text-zinc-500 hover:text-white transition-colors px-4 py-2 text-xs font-bold uppercase tracking-widest">Cancel</button>
               </div>
             ) : (
-              <div className="flex items-center gap-4">
-                <div className="px-4 py-2 border border-zinc-800 bg-black">
-                  <span className="text-sm font-bold font-mono tracking-widest text-green-400">{passkey}</span>
-                </div>
-                <button 
-                  onClick={() => { setIsEditingPasskey(true); setTempPasskey(passkey); }} 
-                  className="bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-colors p-2"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-              </div>
+              <button 
+                onClick={() => { setIsEditingPasskey(true); setTempPasskey(passkey); setTempPasskeyHint(passkeyHint); }} 
+                className="bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-colors px-4 py-2 text-xs font-bold uppercase tracking-widest flex items-center gap-2"
+              >
+                <Edit2 className="w-4 h-4" /> Edit
+              </button>
             )}
           </div>
         </div>

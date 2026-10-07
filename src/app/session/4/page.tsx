@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Shield, KeyRound, Terminal, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { fetchSessionState, fetchSessionPasskey } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
 
 export default function SessionFourFinale() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function SessionFourFinale() {
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("STANDBY");
   const [timeLeft, setTimeLeft] = useState<number>(1500);
   const [inputValue, setInputValue] = useState("");
+  const [passkeyHint, setPasskeyHint] = useState("All subsystems compromised. Awaiting final master override sequence to capture the flag.");
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [masterPasskey, setMasterPasskey] = useState("OVERRIDE-INIT");
@@ -20,24 +21,22 @@ export default function SessionFourFinale() {
   useEffect(() => {
     if (isSuccess || sessionStatus !== "ACTIVE") return;
 
-    let endTimeStr = localStorage.getItem("session_4_endtime");
-    let endTimestamp = 0;
-    if (!endTimeStr) {
-      endTimestamp = Date.now() + 1500 * 1000; // 25 minutes
-      localStorage.setItem("session_4_endtime", endTimestamp.toString());
-    } else {
-      endTimestamp = parseInt(endTimeStr);
-    }
+    let storedRemaining = localStorage.getItem("session_4_timeleft");
+    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 1500; // 25 minutes
+    setTimeLeft(initialRemaining);
 
     const updateTimer = () => {
-      const remaining = Math.max(0, Math.floor((endTimestamp - Date.now()) / 1000));
-      setTimeLeft(remaining);
-      if (remaining === 0) {
-        setSessionStatus("ENDED");
-      }
+      setTimeLeft(prev => {
+        if (prev <= 0) {
+          setSessionStatus("ENDED");
+          return 0;
+        }
+        const newTime = prev - 1;
+        localStorage.setItem("session_4_timeleft", newTime.toString());
+        return newTime;
+      });
     };
 
-    updateTimer();
     const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
   }, [isSuccess, sessionStatus]);
@@ -76,6 +75,14 @@ export default function SessionFourFinale() {
 
       if (p4 || localStorage.getItem("passkey_4")) {
         setMasterPasskey(p4 || localStorage.getItem("passkey_4") || "OVERRIDE-INIT");
+      }
+
+      const savedHint = await fetchSessionPasskeyHint(4);
+      if (savedHint) {
+        setPasskeyHint(savedHint);
+      } else {
+        const localHint = localStorage.getItem('passkey_hint_4');
+        if (localHint) setPasskeyHint(localHint);
       }
     };
     loadHints();
@@ -187,12 +194,12 @@ export default function SessionFourFinale() {
       setErrorMsg("");
 
       // Calculate Score
-      let score = 20; // Final passkey score
+      let score = 10; // Final passkey score
 
       // Calculate time taken
-      const endTimeStr = localStorage.getItem("session_4_endtime");
-      const startTime = endTimeStr ? parseInt(endTimeStr) - 1500000 : Date.now() - 1500000;
-      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+      const timeleftStr = localStorage.getItem("session_4_timeleft");
+      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
+      const timeTaken = 1500 - timeleft;
 
       try {
         const teamDataStr = localStorage.getItem("cyberhunt_team");
@@ -286,9 +293,8 @@ export default function SessionFourFinale() {
         >
           <Terminal className="w-12 h-12 mx-auto mb-6 text-green-400 opacity-80" />
           <h2 className="text-3xl font-bold uppercase tracking-widest mb-4 text-white">The Final Challenge</h2>
-          <p className="text-green-400/80 leading-relaxed max-w-2xl mx-auto text-sm md:text-base">
-            You have successfully infiltrated the network, bypassed the external defenses, and recovered the core data fragments. 
-            Now, you must compile the hints you've gathered to execute the final override.
+          <p className="text-green-400/80 leading-relaxed max-w-2xl mx-auto text-sm md:text-base whitespace-pre-wrap">
+            {passkeyHint}
           </p>
         </motion.div>
 

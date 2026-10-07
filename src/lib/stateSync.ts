@@ -140,6 +140,33 @@ export const fetchSessionPasskey = async (sessionNumber: number): Promise<string
   }
 };
 
+export const fetchSessionPasskeyHint = async (sessionNumber: number): Promise<string | null> => {
+  try {
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.passkeyHints && data.passkeyHints[sessionNumber.toString()]) {
+         return data.passkeyHints[sessionNumber.toString()];
+      }
+    }
+  } catch (e) {
+    console.error("API fetch error", e);
+  }
+  return null;
+};
+
+export const broadcastSessionPasskeyHint = async (sessionNumber: number, hint: string) => {
+  try {
+    await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'update_passkey_hint', session: sessionNumber.toString(), hint })
+    });
+  } catch (e) {
+    console.error("API update error", e);
+  }
+};
+
 export const broadcastSessionQuestions = async (sessionNumber: number, questions: any[]) => {
   try {
     await fetch('/api/state', {

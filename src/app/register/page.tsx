@@ -24,10 +24,10 @@ export default function Register() {
     // Save locally for fallback/optimistic UI
     localStorage.setItem("cyberhunt_team", JSON.stringify(formData));
     localStorage.setItem("cyberhunt_current_session", "1");
-    localStorage.removeItem("session_1_endtime");
-    localStorage.removeItem("session_2_endtime");
-    localStorage.removeItem("session_3_endtime");
-    localStorage.removeItem("session_4_endtime");
+    localStorage.removeItem("session_1_timeleft");
+    localStorage.removeItem("session_2_timeleft");
+    localStorage.removeItem("session_3_timeleft");
+    localStorage.removeItem("session_4_timeleft");
     localStorage.removeItem("session_1_completed");
     localStorage.removeItem("session_2_completed");
     localStorage.removeItem("session_3_completed");
@@ -38,6 +38,11 @@ export default function Register() {
     const existingTeams = JSON.parse(localStorage.getItem("cyberhunt_teams") || "[]");
     existingTeams.push({ ...formData, status: "WAITING", created_at: new Date().toISOString() });
     localStorage.setItem("cyberhunt_teams", JSON.stringify(existingTeams));
+
+    // Remove from local deleted teams if they were previously deleted
+    const deletedTeams = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+    const updatedDeleted = deletedTeams.filter((d: string) => d.toLowerCase() !== formData.teamAlias.toLowerCase());
+    localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify(updatedDeleted));
 
     // Instantly transition the user for a fast experience
     router.push("/waiting");

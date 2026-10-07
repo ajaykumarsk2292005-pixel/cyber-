@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
-import { fetchSessionState, fetchSessionPasskey } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
 
 export default function SessionThree() {
   const router = useRouter();
@@ -30,6 +30,7 @@ export default function SessionThree() {
   
   const [isCompleted, setIsCompleted] = useState(false);
   const [passkey, setPasskey] = useState("");
+  const [passkeyHint, setPasskeyHint] = useState("Critical infrastructure reached. System lockdown initiated. Final authentication required.");
   const [passkeyError, setPasskeyError] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
   const [timeLeft, setTimeLeft] = useState<number>(1500);
@@ -47,25 +48,23 @@ export default function SessionThree() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    let endTimeStr = localStorage.getItem("session_3_endtime");
-    let endTimestamp = 0;
-    if (!endTimeStr) {
-      endTimestamp = Date.now() + 1500 * 1000; // 25 minutes
-      localStorage.setItem("session_3_endtime", endTimestamp.toString());
-    } else {
-      endTimestamp = parseInt(endTimeStr);
-    }
+    let storedRemaining = localStorage.getItem("session_3_timeleft");
+    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 1500; // 25 minutes
+    setTimeLeft(initialRemaining);
 
     const updateTimer = () => {
-      const remaining = Math.max(0, Math.floor((endTimestamp - Date.now()) / 1000));
-      setTimeLeft(remaining);
-      if (remaining === 0) {
-        setIsCompleted(true);
-        localStorage.setItem("session_3_completed", "true");
-      }
+      setTimeLeft(prev => {
+        if (prev <= 0) {
+          setIsCompleted(true);
+          localStorage.setItem("session_3_completed", "true");
+          return 0;
+        }
+        const newTime = prev - 1;
+        localStorage.setItem("session_3_timeleft", newTime.toString());
+        return newTime;
+      });
     };
 
-    updateTimer();
     const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
   }, [isCompleted, sessionStatus]);
@@ -116,6 +115,14 @@ export default function SessionThree() {
     const fetchQ = async () => {
       const q = await getQuestions(3);
       setQuestions(q);
+      
+      const savedHint = await fetchSessionPasskeyHint(3);
+      if (savedHint) {
+        setPasskeyHint(savedHint);
+      } else {
+        const localHint = localStorage.getItem('passkey_hint_3');
+        if (localHint) setPasskeyHint(localHint);
+      }
     };
     fetchQ();
 
@@ -173,13 +180,13 @@ export default function SessionThree() {
 
     if (passkey.toUpperCase() === expectedPasskey.toUpperCase()) { 
       // Calculate Score
-      let score = 0; // Section 3 passkey gives 0 based on rules
+      let score = 5; // Section 3 passkey gives 5 based on rules
       score += submittedAnswers.length * 10; // 10 marks per video challenge
 
       // Calculate time taken
-      const endTimeStr = localStorage.getItem("session_3_endtime");
-      const startTime = endTimeStr ? parseInt(endTimeStr) - 1500000 : Date.now() - 1500000;
-      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+      const timeleftStr = localStorage.getItem("session_3_timeleft");
+      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
+      const timeTaken = 1500 - timeleft;
 
       try {
         const teamDataStr = localStorage.getItem("cyberhunt_team");
@@ -416,7 +423,7 @@ export default function SessionThree() {
                 </motion.div>
                 
                 <p className="text-red-400/80 tracking-widest mb-12 uppercase text-xs md:text-sm" style={{ transform: "translateZ(20px)" }}>
-                  Critical infrastructure reached. System lockdown initiated. Final authentication required.
+                  {passkeyHint}
                 </p>
 
                 <form onSubmit={handlePasskeySubmit} className="w-full" style={{ transform: "translateZ(40px)" }}>

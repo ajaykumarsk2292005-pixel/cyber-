@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
-import { fetchSessionState, fetchSessionPasskey } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
 
 export default function SessionOne() {
   const router = useRouter();
@@ -17,6 +17,7 @@ export default function SessionOne() {
   
   const [isCompleted, setIsCompleted] = useState(false);
   const [passkey, setPasskey] = useState("");
+  const [passkeyHint, setPasskeyHint] = useState("All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.");
   const [passkeyError, setPasskeyError] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
   const [timeLeft, setTimeLeft] = useState<number>(600);
@@ -34,25 +35,23 @@ export default function SessionOne() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    let endTimeStr = localStorage.getItem("session_1_endtime");
-    let endTimestamp = 0;
-    if (!endTimeStr) {
-      endTimestamp = Date.now() + 600 * 1000; // 10 minutes
-      localStorage.setItem("session_1_endtime", endTimestamp.toString());
-    } else {
-      endTimestamp = parseInt(endTimeStr);
-    }
+    let storedRemaining = localStorage.getItem("session_1_timeleft");
+    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 600; // 10 minutes
+    setTimeLeft(initialRemaining);
 
     const updateTimer = () => {
-      const remaining = Math.max(0, Math.floor((endTimestamp - Date.now()) / 1000));
-      setTimeLeft(remaining);
-      if (remaining === 0) {
-        setIsCompleted(true);
-        localStorage.setItem("session_1_completed", "true");
-      }
+      setTimeLeft(prev => {
+        if (prev <= 0) {
+          setIsCompleted(true);
+          localStorage.setItem("session_1_completed", "true");
+          return 0;
+        }
+        const newTime = prev - 1;
+        localStorage.setItem("session_1_timeleft", newTime.toString());
+        return newTime;
+      });
     };
 
-    updateTimer();
     const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
   }, [isCompleted, sessionStatus]);
@@ -103,6 +102,14 @@ export default function SessionOne() {
     const fetchQ = async () => {
       const q = await getQuestions(1);
       setQuestions(q);
+      
+      const savedHint = await fetchSessionPasskeyHint(1);
+      if (savedHint) {
+        setPasskeyHint(savedHint);
+      } else {
+        const localHint = localStorage.getItem('passkey_hint_1');
+        if (localHint) setPasskeyHint(localHint);
+      }
     };
     fetchQ();
 
@@ -167,9 +174,9 @@ export default function SessionOne() {
       });
 
       // Calculate time taken
-      const endTimeStr = localStorage.getItem("session_1_endtime");
-      const startTime = endTimeStr ? parseInt(endTimeStr) - 600000 : Date.now() - 600000;
-      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+      const timeleftStr = localStorage.getItem("session_1_timeleft");
+      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
+      const timeTaken = 600 - timeleft;
 
       try {
         const teamDataStr = localStorage.getItem("cyberhunt_team");
@@ -309,7 +316,7 @@ export default function SessionOne() {
               </div>
               <h1 className="text-4xl font-bold uppercase tracking-widest mb-4">Season 1 Cleared</h1>
               <p className="text-zinc-500 tracking-widest max-w-md mx-auto mb-12">
-                All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.
+                {passkeyHint}
               </p>
 
               <form onSubmit={handlePasskeySubmit} className="w-full max-w-md mx-auto">

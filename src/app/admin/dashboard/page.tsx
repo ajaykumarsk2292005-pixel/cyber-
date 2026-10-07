@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { QuestionManager } from "@/components/QuestionManager";
-import { broadcastSessionState, fetchSessionState, broadcastSessionPasskey, fetchSessionPasskey } from "@/lib/stateSync";
+import { broadcastSessionState, fetchSessionState, broadcastSessionPasskey, fetchSessionPasskey, broadcastSessionPasskeyHint, fetchSessionPasskeyHint } from "@/lib/stateSync";
 
 interface Team {
   id?: number;
@@ -84,9 +84,16 @@ export default function AdminDashboard() {
     3: "SEASON4-ACCESS",
     4: "OVERRIDE-INIT"
   });
+  const [passkeyHints, setPasskeyHints] = useState<Record<number, string>>({
+    1: "All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.",
+    2: "Visual reconnaissance complete. Target located. Awaiting Season 3 authentication passkey.",
+    3: "Critical infrastructure reached. System lockdown initiated. Final authentication required.",
+    4: "All subsystems compromised. Awaiting final master override sequence to capture the flag."
+  });
   
   const [editingPasskey, setEditingPasskey] = useState<number | null>(null);
   const [tempPasskey, setTempPasskey] = useState("");
+  const [tempPasskeyHint, setTempPasskeyHint] = useState("");
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [progressData, setProgressData] = useState<Record<string, { session: number, question: number, timestamp: number }>>({});
@@ -178,11 +185,23 @@ export default function AdminDashboard() {
       const p2 = await fetchSessionPasskey(2);
       const p3 = await fetchSessionPasskey(3);
       const p4 = await fetchSessionPasskey(4);
+      
+      const h1 = await fetchSessionPasskeyHint(1);
+      const h2 = await fetchSessionPasskeyHint(2);
+      const h3 = await fetchSessionPasskeyHint(3);
+      const h4 = await fetchSessionPasskeyHint(4);
+      
       setPasskeys({
         1: p1 || localStorage.getItem("passkey_1") || "SEASON2-ACCESS",
         2: p2 || localStorage.getItem("passkey_2") || "SEASON3-ACCESS",
         3: p3 || localStorage.getItem("passkey_3") || "SEASON4-ACCESS",
         4: p4 || localStorage.getItem("passkey_4") || "OVERRIDE-INIT"
+      });
+      setPasskeyHints({
+        1: h1 || localStorage.getItem("passkey_hint_1") || "All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.",
+        2: h2 || localStorage.getItem("passkey_hint_2") || "Visual reconnaissance complete. Target located. Awaiting Season 3 authentication passkey.",
+        3: h3 || localStorage.getItem("passkey_hint_3") || "Critical infrastructure reached. System lockdown initiated. Final authentication required.",
+        4: h4 || localStorage.getItem("passkey_hint_4") || "All subsystems compromised. Awaiting final master override sequence to capture the flag."
       });
     };
     loadPasskeys();
@@ -243,35 +262,50 @@ export default function AdminDashboard() {
         }
       } catch(e) {}
 
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-        const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: false });
-        if (!error && data) {
-          setTeams(filterRealTeams(data));
-          setIsLoadingTeams(false);
-          return;
-        }
-      }
+      let allTeamsMap = new Map();
       
-      // Fallback to in-memory API first
-      if (memoryTeams && memoryTeams.length > 0) {
-        setTeams(filterRealTeams(memoryTeams.reverse()));
-        setIsLoadingTeams(false);
-        return;
+      // 1. Add from localStorage
+      try {
+        const localTeams = JSON.parse(localStorage.getItem("cyberhunt_teams") || "[]");
+        if (Array.isArray(localTeams)) {
+          localTeams.forEach(t => {
+            const alias = t.team_alias || t.teamAlias;
+            if (alias) allTeamsMap.set(alias, t);
+          });
+        }
+      } catch(e) {}
+
+      // 2. Add from memoryTeams (API)
+      if (Array.isArray(memoryTeams)) {
+        memoryTeams.forEach(t => {
+          const alias = t.team_alias || t.teamAlias;
+          if (alias) allTeamsMap.set(alias, t);
+        });
       }
 
-      // Ultimate Fallback to localStorage array if Supabase is empty, failing, or not configured
-      const localTeams = localStorage.getItem("cyberhunt_teams");
-      if (localTeams) {
-        setTeams(filterRealTeams(JSON.parse(localTeams).reverse()));
-      } else {
-        setTeams([]);
+      // 3. Add from Supabase
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
+        const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: true });
+        if (!error && data) {
+          data.forEach(t => {
+            const alias = t.team_alias || t.teamAlias;
+            if (alias) allTeamsMap.set(alias, t);
+          });
+        }
       }
+
+      let mergedTeams = Array.from(allTeamsMap.values());
+      
+      // Sort by created_at desc (newest first)
+      mergedTeams.sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateB - dateA;
+      });
+
+      setTeams(filterRealTeams(mergedTeams));
     } catch (e) {
-      // Silently fail and fallback to localStorage
-      const localTeams = localStorage.getItem("cyberhunt_teams");
-      if (localTeams) {
-        setTeams(filterRealTeams(JSON.parse(localTeams).reverse()));
-      }
+      console.error("Critical error in fetchTeamsData", e);
     } finally {
       setIsLoadingTeams(false);
     }
@@ -722,31 +756,53 @@ export default function AdminDashboard() {
                     
                     <div className="flex items-center gap-4">
                       {editingPasskey === 4 ? (
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="text" 
-                            value={tempPasskey} 
-                            onChange={(e) => setTempPasskey(e.target.value)}
-                            className="bg-black border border-green-500/50 text-green-400 font-mono text-sm px-3 py-2 outline-none tracking-widest uppercase w-64"
-                            placeholder="FINAL PASSWORD..."
-                          />
-                          <button onClick={() => handleSavePasskey(4)} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors p-2"><Save className="w-4 h-4"/></button>
+                        <div className="flex flex-col gap-4 w-full max-w-lg">
+                          <div>
+                            <label className="block text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Passkey</label>
+                            <input 
+                              type="text" 
+                              value={tempPasskey} 
+                              onChange={(e) => setTempPasskey(e.target.value)}
+                              className="w-full bg-black border border-green-500/50 text-green-400 font-mono text-sm px-3 py-2 outline-none tracking-widest uppercase"
+                              placeholder="FINAL PASSWORD..."
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Hint Message</label>
+                            <textarea 
+                              value={tempPasskeyHint} 
+                              onChange={(e) => setTempPasskeyHint(e.target.value)}
+                              className="w-full bg-black border border-zinc-700 text-zinc-300 font-mono text-sm px-3 py-2 outline-none resize-none h-24 focus:border-green-500/50 transition-colors"
+                            />
+                          </div>
+                          <div className="flex gap-2 justify-end">
+                            <button onClick={() => setEditingPasskey(null)} className="text-zinc-500 hover:text-white uppercase text-xs font-bold tracking-widest px-4 py-2 bg-zinc-900 border border-zinc-700 transition-colors">Cancel</button>
+                            <button onClick={() => handleSavePasskey(4)} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors px-4 py-2 text-xs font-bold uppercase tracking-widest flex items-center gap-2"><Save className="w-4 h-4"/> Save</button>
+                          </div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-4">
-                          <div className="px-4 py-2 border border-zinc-800 bg-black min-w-[200px] text-center">
+                        <div className="flex flex-col gap-4">
+                          <div className="px-4 py-2 border border-zinc-800 bg-black min-w-[200px] inline-block">
+                            <span className="text-xs text-zinc-500 uppercase tracking-widest mr-2">Passkey:</span>
                             <span className="text-sm font-bold font-mono tracking-widest text-green-400">
                               {passkeys[4] || (typeof window !== 'undefined' ? localStorage.getItem("passkey_4") : null) || "OVERRIDE-INIT"}
+                            </span>
+                          </div>
+                          <div className="p-4 border border-zinc-800 bg-black/50 max-w-lg">
+                            <span className="block text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Hint Message:</span>
+                            <span className="text-sm text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap">
+                              {passkeyHints[4] || (typeof window !== 'undefined' ? localStorage.getItem("passkey_hint_4") : null) || "All subsystems compromised. Awaiting final master override sequence to capture the flag."}
                             </span>
                           </div>
                           <button 
                             onClick={() => { 
                               setEditingPasskey(4); 
                               setTempPasskey(passkeys[4] || (typeof window !== 'undefined' ? (localStorage.getItem("passkey_4") || "OVERRIDE-INIT") : "")); 
+                              setTempPasskeyHint(passkeyHints[4] || (typeof window !== 'undefined' ? (localStorage.getItem("passkey_hint_4") || "All subsystems compromised. Awaiting final master override sequence to capture the flag.") : "")); 
                             }} 
-                            className="bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-colors p-2"
+                            className="bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white transition-colors p-2 self-start flex items-center gap-2 px-4 uppercase text-xs font-bold tracking-widest"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-4 h-4" /> Edit
                           </button>
                         </div>
                       )}

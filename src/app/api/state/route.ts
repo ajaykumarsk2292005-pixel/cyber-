@@ -1,4 +1,9 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_key';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 declare global {
   var __cyberhunt_state: {
@@ -9,6 +14,8 @@ declare global {
     progress: Record<string, { session: number, question: number, timestamp: number }>;
     scores: Record<string, Record<string, { score: number, time_taken: number }>>;
     questions: Record<string, any[]>;
+    passkeyHints?: Record<string, string>;
+    _initialized_from_storage?: boolean;
   } | undefined;
 }
 
@@ -25,6 +32,12 @@ if (!globalThis.__cyberhunt_state) {
       "2": "SEASON3-ACCESS",
       "3": "SEASON4-ACCESS"
     },
+    passkeyHints: {
+      "1": "All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.",
+      "2": "Visual reconnaissance complete. Target located. Awaiting Season 3 authentication passkey.",
+      "3": "Critical infrastructure reached. System lockdown initiated. Final authentication required.",
+      "4": "All subsystems compromised. Awaiting final master override sequence to capture the flag."
+    },
     teams: [],
     deleted_teams: [],
     progress: {},
@@ -34,6 +47,28 @@ if (!globalThis.__cyberhunt_state) {
 }
 
 export async function GET() {
+  if (globalThis.__cyberhunt_state && !globalThis.__cyberhunt_state._initialized_from_storage && supabaseUrl !== 'https://placeholder.supabase.co') {
+    // Only fetch from storage on cold start to prevent overwriting active memory with stale bucket data
+    try {
+      const { data, error } = await supabase.storage.from('cyberhunt-media').download('state.json');
+      if (data) {
+        const text = await data.text();
+        const parsedState = JSON.parse(text);
+        if (parsedState && parsedState.sessions) {
+          globalThis.__cyberhunt_state = {
+            ...parsedState,
+            _initialized_from_storage: true
+          };
+        }
+      } else {
+         globalThis.__cyberhunt_state!._initialized_from_storage = true;
+      }
+    } catch (e) {
+      console.error("Storage state fetch error:", e);
+      globalThis.__cyberhunt_state!._initialized_from_storage = true;
+    }
+  }
+  
   return NextResponse.json(globalThis.__cyberhunt_state);
 }
 
@@ -52,12 +87,24 @@ export async function POST(req: Request) {
       if (!globalThis.__cyberhunt_state!.passkeys) globalThis.__cyberhunt_state!.passkeys = {};
       globalThis.__cyberhunt_state!.passkeys[data.session] = data.passkey;
     }
+    else if (data.type === 'update_passkey_hint') {
+      if (!globalThis.__cyberhunt_state!.passkeyHints) globalThis.__cyberhunt_state!.passkeyHints = {};
+      globalThis.__cyberhunt_state!.passkeyHints[data.session] = data.hint;
+    }
     else if (data.type === 'register_team') {
+      const alias = data.team.team_alias || data.team.teamAlias;
       const exists = globalThis.__cyberhunt_state!.teams.find(
-        t => t.team_alias === data.team.team_alias || t.teamAlias === data.team.teamAlias
+        t => t.team_alias === alias || t.teamAlias === alias
       );
       if (!exists) {
         globalThis.__cyberhunt_state!.teams.push(data.team);
+      }
+      
+      // If team was previously deleted, un-delete them upon re-registration
+      if (globalThis.__cyberhunt_state!.deleted_teams) {
+        globalThis.__cyberhunt_state!.deleted_teams = globalThis.__cyberhunt_state!.deleted_teams.filter(
+          d => String(d).toLowerCase() !== String(alias).toLowerCase()
+        );
       }
     }
     else if (data.type === 'delete_team') {
@@ -99,6 +146,18 @@ export async function POST(req: Request) {
           score: data.score,
           time_taken: data.time_taken
         };
+      }
+    }
+
+    if (supabaseUrl !== 'https://placeholder.supabase.co') {
+      try {
+        await supabase.storage.from('cyberhunt-media')
+          .upload('state.json', JSON.stringify(globalThis.__cyberhunt_state), {
+            contentType: 'application/json',
+            upsert: true
+          });
+      } catch (err) {
+        console.error("Storage state sync error:", err);
       }
     }
 
