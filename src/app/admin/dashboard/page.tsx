@@ -240,7 +240,21 @@ export default function AdminDashboard() {
         if (res.ok) {
           const memoryState = await res.json();
           if (memoryState && memoryState.deleted_teams) memoryDeleted = memoryState.deleted_teams;
-          if (memoryState && memoryState.teams) memoryTeams = memoryState.teams;
+          if (memoryState && memoryState.teams) {
+            memoryTeams = memoryState.teams;
+            
+            // Clean up localDeleted: if API says they are active (in memoryTeams), they shouldn't be locally deleted
+            try {
+              let currentLocalDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
+              if (Array.isArray(currentLocalDeleted)) {
+                const memoryAliasesLower = memoryTeams.map((t: any) => String(t.team_alias || t.teamAlias || "").trim().toLowerCase());
+                const newLocalDeleted = currentLocalDeleted.filter(d => !memoryAliasesLower.includes(String(d).trim().toLowerCase()));
+                if (newLocalDeleted.length !== currentLocalDeleted.length) {
+                  localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify(newLocalDeleted));
+                }
+              }
+            } catch(e) {}
+          }
           if (memoryState && memoryState.progress) setProgressData(memoryState.progress);
           if (memoryState && memoryState.scores) setScoresData(memoryState.scores);
         }
