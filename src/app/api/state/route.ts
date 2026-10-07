@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_key';
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -48,6 +50,7 @@ if (!globalThis.__cyberhunt_state) {
   };
 }
 
+export async function GET() {
   if (globalThis.__cyberhunt_state && !globalThis.__cyberhunt_state._initialized_from_storage) {
     if (supabaseUrl !== 'https://placeholder.supabase.co') {
       try {

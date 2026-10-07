@@ -179,33 +179,34 @@ export default function AdminDashboard() {
     } catch(e) {}
   };
 
+  const loadPasskeys = async () => {
+    const p1 = await fetchSessionPasskey(1);
+    const p2 = await fetchSessionPasskey(2);
+    const p3 = await fetchSessionPasskey(3);
+    const p4 = await fetchSessionPasskey(4);
+    
+    const h1 = await fetchSessionPasskeyHint(1);
+    const h2 = await fetchSessionPasskeyHint(2);
+    const h3 = await fetchSessionPasskeyHint(3);
+    const h4 = await fetchSessionPasskeyHint(4);
+    
+    setPasskeys({
+      1: p1 || localStorage.getItem("passkey_1") || "SEASON2-ACCESS",
+      2: p2 || localStorage.getItem("passkey_2") || "SEASON3-ACCESS",
+      3: p3 || localStorage.getItem("passkey_3") || "SEASON4-ACCESS",
+      4: p4 || localStorage.getItem("passkey_4") || "OVERRIDE-INIT"
+    });
+    setPasskeyHints({
+      1: h1 || localStorage.getItem("passkey_hint_1") || "All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.",
+      2: h2 || localStorage.getItem("passkey_hint_2") || "Visual reconnaissance complete. Target located. Awaiting Season 3 authentication passkey.",
+      3: h3 || localStorage.getItem("passkey_hint_3") || "Critical infrastructure reached. System lockdown initiated. Final authentication required.",
+      4: h4 || localStorage.getItem("passkey_hint_4") || "All subsystems compromised. Awaiting final master override sequence to capture the flag."
+    });
+  };
+
   useEffect(() => {
-    const loadPasskeys = async () => {
-      const p1 = await fetchSessionPasskey(1);
-      const p2 = await fetchSessionPasskey(2);
-      const p3 = await fetchSessionPasskey(3);
-      const p4 = await fetchSessionPasskey(4);
-      
-      const h1 = await fetchSessionPasskeyHint(1);
-      const h2 = await fetchSessionPasskeyHint(2);
-      const h3 = await fetchSessionPasskeyHint(3);
-      const h4 = await fetchSessionPasskeyHint(4);
-      
-      setPasskeys({
-        1: p1 || localStorage.getItem("passkey_1") || "SEASON2-ACCESS",
-        2: p2 || localStorage.getItem("passkey_2") || "SEASON3-ACCESS",
-        3: p3 || localStorage.getItem("passkey_3") || "SEASON4-ACCESS",
-        4: p4 || localStorage.getItem("passkey_4") || "OVERRIDE-INIT"
-      });
-      setPasskeyHints({
-        1: h1 || localStorage.getItem("passkey_hint_1") || "All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.",
-        2: h2 || localStorage.getItem("passkey_hint_2") || "Visual reconnaissance complete. Target located. Awaiting Season 3 authentication passkey.",
-        3: h3 || localStorage.getItem("passkey_hint_3") || "Critical infrastructure reached. System lockdown initiated. Final authentication required.",
-        4: h4 || localStorage.getItem("passkey_hint_4") || "All subsystems compromised. Awaiting final master override sequence to capture the flag."
-      });
-    };
     loadPasskeys();
-  }, []);
+  }, [activeTab]);
 
   const fetchTeamsData = async () => {
     if (isLoadingTeams) return;
