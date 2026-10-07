@@ -38,55 +38,17 @@ export const broadcastSessionState = async (sessionNumber: number, status: strin
 
 export const fetchSessionState = async (sessionNumber: number): Promise<string | null> => {
   try {
-    // 1. Try hitting the local in-memory API first
     const res = await fetch('/api/state', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data && data.sessions && data.sessions[sessionNumber.toString()]) {
-        const apiStatus = data.sessions[sessionNumber.toString()];
-        // Only return API status if it's not STANDBY, because default is STANDBY
-        // If it's STANDBY, we might want to check Supabase just in case, but usually API is authoritative if updated
-        if (apiStatus !== "STANDBY" || !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
-           return apiStatus;
-        }
+        return data.sessions[sessionNumber.toString()];
       }
     }
   } catch (e) {
     console.error("API fetch error", e);
   }
-
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
-    return null;
-  }
-  try {
-    // 2. Try standard sessions table
-    const { data: sessionData, error: sessionError } = await supabase
-      .from('sessions')
-      .select('status')
-      .eq('session_number', sessionNumber)
-      .single();
-      
-    // 3. Check the append-only event log in teams
-    const { data: sysTeams, error: sysError } = await supabase
-      .from('teams')
-      .select('team_alias')
-      .eq('college', 'SYS_STATE')
-      .like('team_alias', `_SYS_STATE_S${sessionNumber}_%`)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (sysTeams && sysTeams.length > 0) {
-      const parts = sysTeams[0].team_alias.split('_');
-      if (parts.length >= 5) {
-        return parts[4];
-      }
-    }
-    
-    return sessionData?.status || null;
-  } catch (e) {
-    console.error("Fetch error", e);
-    return null;
-  }
+  return "STANDBY";
 };
 
 export const broadcastSessionPasskey = async (sessionNumber: number, passkey: string) => {
