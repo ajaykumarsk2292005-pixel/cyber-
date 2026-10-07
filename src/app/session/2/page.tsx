@@ -136,9 +136,7 @@ export default function SessionTwo() {
     fetchQ();
 
     const interval = setInterval(pollStatus, 2000);
-    const handleStorage = () => { pollStatus(); fetchQ(); };
-    window.addEventListener("storage", handleStorage);
-    return () => { clearInterval(interval); window.removeEventListener("storage", handleStorage); };
+    return () => clearInterval(interval);
   }, []);
 
   // Ping progress to admin dashboard
