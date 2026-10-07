@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+import path from 'path';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder_key';
@@ -46,26 +48,45 @@ if (!globalThis.__cyberhunt_state) {
   };
 }
 
-export async function GET() {
-  if (globalThis.__cyberhunt_state && !globalThis.__cyberhunt_state._initialized_from_storage && supabaseUrl !== 'https://placeholder.supabase.co') {
-    // Only fetch from storage on cold start to prevent overwriting active memory with stale bucket data
-    try {
-      const { data, error } = await supabase.storage.from('cyberhunt-media').download('state.json');
-      if (data) {
-        const text = await data.text();
-        const parsedState = JSON.parse(text);
-        if (parsedState && parsedState.sessions) {
-          globalThis.__cyberhunt_state = {
-            ...parsedState,
-            _initialized_from_storage: true
-          };
+  if (globalThis.__cyberhunt_state && !globalThis.__cyberhunt_state._initialized_from_storage) {
+    if (supabaseUrl !== 'https://placeholder.supabase.co') {
+      try {
+        const { data, error } = await supabase.storage.from('cyberhunt-media').download('state.json');
+        if (data) {
+          const text = await data.text();
+          const parsedState = JSON.parse(text);
+          if (parsedState && parsedState.sessions) {
+            globalThis.__cyberhunt_state = {
+              ...parsedState,
+              _initialized_from_storage: true
+            };
+          }
+        } else {
+           globalThis.__cyberhunt_state!._initialized_from_storage = true;
         }
-      } else {
-         globalThis.__cyberhunt_state!._initialized_from_storage = true;
+      } catch (e) {
+        console.error("Storage state fetch error:", e);
+        globalThis.__cyberhunt_state!._initialized_from_storage = true;
       }
-    } catch (e) {
-      console.error("Storage state fetch error:", e);
-      globalThis.__cyberhunt_state!._initialized_from_storage = true;
+    } else {
+      // Local development fallback
+      try {
+        const localPath = path.join(process.cwd(), '.next', 'local_state.json');
+        if (fs.existsSync(localPath)) {
+          const text = fs.readFileSync(localPath, 'utf8');
+          const parsedState = JSON.parse(text);
+          if (parsedState && parsedState.sessions) {
+            globalThis.__cyberhunt_state = {
+              ...parsedState,
+              _initialized_from_storage: true
+            };
+          }
+        } else {
+          globalThis.__cyberhunt_state!._initialized_from_storage = true;
+        }
+      } catch(e) {
+        globalThis.__cyberhunt_state!._initialized_from_storage = true;
+      }
     }
   }
   
@@ -159,6 +180,12 @@ export async function POST(req: Request) {
       } catch (err) {
         console.error("Storage state sync error:", err);
       }
+    } else {
+      // Local development fallback
+      try {
+        const localPath = path.join(process.cwd(), '.next', 'local_state.json');
+        fs.writeFileSync(localPath, JSON.stringify(globalThis.__cyberhunt_state));
+      } catch(e) {}
     }
 
     return NextResponse.json({ success: true, state: globalThis.__cyberhunt_state });

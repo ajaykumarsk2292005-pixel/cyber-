@@ -336,8 +336,11 @@ export default function AdminDashboard() {
   const handleSavePasskey = async (seasonId: number) => {
     try {
       await broadcastSessionPasskey(seasonId, tempPasskey);
+      await broadcastSessionPasskeyHint(seasonId, tempPasskeyHint);
       setPasskeys(prev => ({...prev, [seasonId]: tempPasskey}));
+      setPasskeyHints(prev => ({...prev, [seasonId]: tempPasskeyHint}));
       localStorage.setItem(`passkey_${seasonId}`, tempPasskey);
+      localStorage.setItem(`passkey_hint_${seasonId}`, tempPasskeyHint);
       setEditingPasskey(null);
       setPasskeySuccess(`Successfully updated passkey!`);
       setTimeout(() => setPasskeySuccess(null), 3000);
@@ -865,16 +868,17 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     {teams
                       .map(t => {
-                        const alias = t.teamAlias || t.team_alias;
+                        const rawAlias = t.teamAlias || t.team_alias || "";
+                        const scoreEntryKey = Object.keys(scoresData).find(k => k.toLowerCase() === String(rawAlias).toLowerCase());
                         let totalScore = 0;
                         let totalTime = 0;
-                        if (scoresData[alias]) {
-                          Object.values(scoresData[alias]).forEach((s: any) => {
-                            totalScore += (s.score || 0);
-                            totalTime += (s.time_taken || 0);
+                        if (scoreEntryKey && scoresData[scoreEntryKey]) {
+                          Object.values(scoresData[scoreEntryKey]).forEach((s: any) => {
+                            totalScore += (Number(s.score) || 0);
+                            totalTime += (Number(s.time_taken) || 0);
                           });
                         }
-                        return { ...t, totalScore, totalTime };
+                        return { ...t, totalScore, totalTime, scoreEntryKey };
                       })
                       .sort((a, b) => {
                         if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
@@ -894,7 +898,7 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex items-center gap-2 ml-10">
                             {[1, 2, 3, 4].map(s => {
-                              const sData = scoresData[t.teamAlias || t.team_alias]?.[s];
+                              const sData = t.scoreEntryKey ? scoresData[t.scoreEntryKey]?.[s] : null;
                               if (!sData) return null;
                               return (
                                 <div key={s} className="px-2 py-1 bg-black border border-zinc-800 text-[9px] font-mono text-zinc-400">
