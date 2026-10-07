@@ -45,11 +45,7 @@ export default function SessionTwo() {
   const [timeLeft, setTimeLeft] = useState<number>(1200);
 
   useEffect(() => {
-    const isPreviousCompleted = localStorage.getItem("session_1_completed") === "true";
-    if (!isPreviousCompleted) {
-      router.replace("/session/1");
-      return;
-    }
+
     
     if (localStorage.getItem("session_2_completed") === "true") {
       setIsCompleted(true);
