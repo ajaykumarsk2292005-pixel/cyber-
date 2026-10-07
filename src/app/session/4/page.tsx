@@ -108,15 +108,6 @@ export default function SessionFourFinale() {
       }
 
       if (remoteStatus) {
-        if (remoteStatus === "RESET") {
-          localStorage.removeItem("cyberhunt_session_states");
-          localStorage.removeItem("cyberhunt_current_session");
-          localStorage.removeItem("session_4_completed");
-          localStorage.removeItem("session_4_endtime");
-          window.location.href = "/";
-          return;
-        }
-
         finalStatus = remoteStatus;
       } else if (localStatus) {
         finalStatus = localStatus;
