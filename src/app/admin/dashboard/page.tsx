@@ -358,20 +358,53 @@ export default function AdminDashboard() {
     }
     
     // Headers
-    const headers = ['Rank', 'Team Alias', 'College', 'Participant 1', 'Participant 2', 'Status'];
+    const headers = [
+      'Rank', 'Team Alias', 'College', 'Participant 1', 'Participant 2', 'Status',
+      'S1 Score', 'S1 Time (s)', 'S2 Score', 'S2 Time (s)', 'S3 Score', 'S3 Time (s)', 'S4 Score', 'S4 Time (s)',
+      'Total Score', 'Total Time (s)'
+    ];
     
     // Rows
-    const rows = data.map((team, index) => {
+    const rows = data
+      .map(t => {
+        const rawAlias = t.teamAlias || t.team_alias || "";
+        const scoreEntryKey = Object.keys(scoresData).find(k => k.toLowerCase() === String(rawAlias).toLowerCase());
+        let totalScore = 0;
+        let totalTime = 0;
+        if (scoreEntryKey && scoresData[scoreEntryKey]) {
+          Object.values(scoresData[scoreEntryKey]).forEach((s: any) => {
+            totalScore += (Number(s.score) || 0);
+            totalTime += (Number(s.time_taken) || 0);
+          });
+        }
+        return { ...t, totalScore, totalTime, scoreEntryKey };
+      })
+      .sort((a, b) => {
+        if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+        return a.totalTime - b.totalTime;
+      })
+      .map((team, index) => {
       // Escape commas in strings
       const escapeStr = (str: string) => `"${(str || '').replace(/"/g, '""')}"`;
       
+      const s1 = team.scoreEntryKey ? scoresData[team.scoreEntryKey]?.[1] : null;
+      const s2 = team.scoreEntryKey ? scoresData[team.scoreEntryKey]?.[2] : null;
+      const s3 = team.scoreEntryKey ? scoresData[team.scoreEntryKey]?.[3] : null;
+      const s4 = team.scoreEntryKey ? scoresData[team.scoreEntryKey]?.[4] : null;
+
       return [
         index + 1,
         escapeStr(team.teamAlias || team.team_alias || ''),
         escapeStr(team.college || ''),
         escapeStr(team.nodeAlpha || team.node_alpha || ''),
         escapeStr(team.nodeBeta || team.node_beta || ''),
-        escapeStr(team.status || '')
+        escapeStr(team.status || ''),
+        s1?.score || 0, s1?.time_taken || 0,
+        s2?.score || 0, s2?.time_taken || 0,
+        s3?.score || 0, s3?.time_taken || 0,
+        s4?.score || 0, s4?.time_taken || 0,
+        team.totalScore || 0,
+        team.totalTime || 0
       ].join(',');
     });
     
@@ -900,10 +933,9 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2 ml-10">
                             {[1, 2, 3, 4].map(s => {
                               const sData = t.scoreEntryKey ? scoresData[t.scoreEntryKey]?.[s] : null;
-                              if (!sData) return null;
                               return (
-                                <div key={s} className="px-2 py-1 bg-black border border-zinc-800 text-[9px] font-mono text-zinc-400">
-                                  <span className="text-zinc-500">S{s}:</span> {sData.score}PTS <span className="text-zinc-600">|</span> {sData.time_taken}s
+                                <div key={s} className={`px-2 py-1 bg-black border ${sData ? 'border-zinc-700' : 'border-zinc-900'} text-[9px] font-mono text-zinc-400`}>
+                                  <span className="text-zinc-500">S{s}:</span> {sData?.score || 0}PTS <span className="text-zinc-600">|</span> {sData?.time_taken || 0}s
                                 </div>
                               );
                             })}
