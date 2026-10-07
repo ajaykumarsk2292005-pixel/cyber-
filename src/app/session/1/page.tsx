@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
 import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
+import { getSessionTimeLeft, startSessionTimer } from "@/lib/sessionTimer";
 
 export default function SessionOne() {
   const router = useRouter();
@@ -35,25 +36,15 @@ export default function SessionOne() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    let storedRemaining = localStorage.getItem("session_1_timeleft");
-    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 600; // 10 minutes
-    setTimeLeft(initialRemaining);
-
-    const updateTimer = () => {
-      setTimeLeft(prev => {
-        if (prev <= 0) {
-          setIsCompleted(true);
-          localStorage.setItem("session_1_completed", "true");
-          return 0;
-        }
-        const newTime = prev - 1;
-        localStorage.setItem("session_1_timeleft", newTime.toString());
-        return newTime;
-      });
-    };
-
-    const timer = setInterval(updateTimer, 1000);
-    return () => clearInterval(timer);
+    return startSessionTimer({
+      sessionNumber: 1,
+      durationSeconds: 600,
+      onTick: setTimeLeft,
+      onExpire: () => {
+        setIsCompleted(true);
+        localStorage.setItem("session_1_completed", "true");
+      },
+    });
   }, [isCompleted, sessionStatus]);
 
   useEffect(() => {
@@ -163,8 +154,7 @@ export default function SessionOne() {
       });
 
       // Calculate time taken
-      const timeleftStr = localStorage.getItem("session_1_timeleft");
-      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
+      const timeleft = getSessionTimeLeft(1, 600);
       const timeTaken = 600 - timeleft;
 
       try {

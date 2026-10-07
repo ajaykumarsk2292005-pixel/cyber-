@@ -8,6 +8,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
 import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
+import { getSessionTimeLeft, startSessionTimer } from "@/lib/sessionTimer";
 
 export default function SessionTwo() {
   const router = useRouter();
@@ -59,25 +60,15 @@ export default function SessionTwo() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    let storedRemaining = localStorage.getItem("session_2_timeleft");
-    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 1200; // 20 minutes
-    setTimeLeft(initialRemaining);
-
-    const updateTimer = () => {
-      setTimeLeft(prev => {
-        if (prev <= 0) {
-          setIsCompleted(true);
-          localStorage.setItem("session_2_completed", "true");
-          return 0;
-        }
-        const newTime = prev - 1;
-        localStorage.setItem("session_2_timeleft", newTime.toString());
-        return newTime;
-      });
-    };
-
-    const timer = setInterval(updateTimer, 1000);
-    return () => clearInterval(timer);
+    return startSessionTimer({
+      sessionNumber: 2,
+      durationSeconds: 1200,
+      onTick: setTimeLeft,
+      onExpire: () => {
+        setIsCompleted(true);
+        localStorage.setItem("session_2_completed", "true");
+      },
+    });
   }, [isCompleted, sessionStatus]);
 
   useEffect(() => {
@@ -184,8 +175,7 @@ export default function SessionTwo() {
       score += submittedAnswers.length * 5; // 5 marks per image solved
 
       // Calculate time taken
-      const timeleftStr = localStorage.getItem("session_2_timeleft");
-      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
+      const timeleft = getSessionTimeLeft(2, 1200);
       const timeTaken = 1200 - timeleft;
 
       try {
@@ -274,10 +264,10 @@ export default function SessionTwo() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ type: "spring", stiffness: 200, damping: 20 }}
-              className="w-full flex flex-col md:flex-row gap-8"
+              className="w-full grid grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,1fr)] gap-8 items-start"
             >
               {/* Image Clue Section */}
-              <div className="flex-[3] bg-black border border-zinc-800 shadow-2xl relative p-4 flex flex-col min-h-[300px]">
+              <div className="bg-black border border-zinc-800 shadow-2xl relative p-4 flex flex-col min-w-0">
                 <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-zinc-500"></div>
                 <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-zinc-500"></div>
                 <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-zinc-500"></div>
@@ -289,7 +279,7 @@ export default function SessionTwo() {
                 </div>
                 
                 <div 
-                  className="flex-1 relative bg-zinc-950 flex items-center justify-center overflow-hidden border border-zinc-900 cursor-crosshair"
+                  className="relative aspect-[4/3] bg-zinc-950 flex items-center justify-center overflow-hidden border border-zinc-900 cursor-crosshair"
                   onMouseMove={handleMouseMove}
                   onMouseEnter={() => setIsHoveringImage(true)}
                   onMouseLeave={() => setIsHoveringImage(false)}
@@ -302,18 +292,16 @@ export default function SessionTwo() {
                       style={{
                         transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
                       }}
-                      className={`w-full h-full object-cover transition-all duration-200 ${isHoveringImage ? 'scale-[3] opacity-100' : 'scale-100 opacity-80'}`}
+                      className={`w-full h-full object-contain transition-all duration-200 ${isHoveringImage ? 'scale-[1.75] opacity-100' : 'scale-100 opacity-90'}`}
                     />
                   ) : (
                     <div className="text-zinc-500 font-mono text-xs uppercase tracking-widest h-full w-full flex items-center justify-center">No Media</div>
                   )}
-                  {/* Scanline overlay for aesthetic */}
-                  <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] z-10 mix-blend-overlay" />
                 </div>
               </div>
 
               {/* Question & Options Section */}
-              <div className="flex-[2] flex flex-col justify-center">
+              <div className="flex flex-col justify-center min-w-0">
                 <div className="mb-8 flex items-center gap-4">
                   <div className="w-12 h-12 bg-black border border-zinc-700 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(255,255,255,0.1)]">
                     {currentIndex + 1}

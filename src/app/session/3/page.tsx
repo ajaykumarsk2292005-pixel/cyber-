@@ -8,6 +8,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
 import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
+import { getSessionTimeLeft, startSessionTimer } from "@/lib/sessionTimer";
 
 export default function SessionThree() {
   const router = useRouter();
@@ -50,25 +51,15 @@ export default function SessionThree() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    let storedRemaining = localStorage.getItem("session_3_timeleft");
-    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 1500; // 25 minutes
-    setTimeLeft(initialRemaining);
-
-    const updateTimer = () => {
-      setTimeLeft(prev => {
-        if (prev <= 0) {
-          setIsCompleted(true);
-          localStorage.setItem("session_3_completed", "true");
-          return 0;
-        }
-        const newTime = prev - 1;
-        localStorage.setItem("session_3_timeleft", newTime.toString());
-        return newTime;
-      });
-    };
-
-    const timer = setInterval(updateTimer, 1000);
-    return () => clearInterval(timer);
+    return startSessionTimer({
+      sessionNumber: 3,
+      durationSeconds: 1500,
+      onTick: setTimeLeft,
+      onExpire: () => {
+        setIsCompleted(true);
+        localStorage.setItem("session_3_completed", "true");
+      },
+    });
   }, [isCompleted, sessionStatus]);
 
   useEffect(() => {
@@ -175,8 +166,7 @@ export default function SessionThree() {
       score += submittedAnswers.length * 10; // 10 marks per video challenge
 
       // Calculate time taken
-      const timeleftStr = localStorage.getItem("session_3_timeleft");
-      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
+      const timeleft = getSessionTimeLeft(3, 1500);
       const timeTaken = 1500 - timeleft;
 
       try {
