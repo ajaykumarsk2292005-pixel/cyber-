@@ -54,6 +54,12 @@ export default function SessionFourFinale() {
   });
 
   useEffect(() => {
+    const isPreviousCompleted = localStorage.getItem("session_3_completed") === "true";
+    if (!isPreviousCompleted) {
+      router.replace("/session/3");
+      return;
+    }
+    
     const saved = localStorage.getItem("cyberhunt_team");
     if (!saved) {
       router.replace("/");

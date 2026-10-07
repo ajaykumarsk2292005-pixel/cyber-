@@ -36,6 +36,12 @@ export default function SessionThree() {
   const [timeLeft, setTimeLeft] = useState<number>(1500);
 
   useEffect(() => {
+    const isPreviousCompleted = localStorage.getItem("session_2_completed") === "true";
+    if (!isPreviousCompleted) {
+      router.replace("/session/2");
+      return;
+    }
+    
     if (localStorage.getItem("session_3_completed") === "true") {
       setIsCompleted(true);
     }
