@@ -77,13 +77,14 @@ export default function LeaderboardWaitPage() {
 
   const getRankedTeams = () => {
     return teams.map(t => {
-      const alias = t.teamAlias || t.team_alias;
+      const rawAlias = t.teamAlias || t.team_alias || "";
+      const scoreEntryKey = Object.keys(scoresData).find(k => k.toLowerCase() === String(rawAlias).toLowerCase());
       let totalScore = 0;
       let totalTime = 0;
-      if (scoresData[alias]) {
-        Object.values(scoresData[alias]).forEach((s: any) => {
-          totalScore += (s.score || 0);
-          totalTime += (s.time_taken || 0);
+      if (scoreEntryKey && scoresData[scoreEntryKey]) {
+        Object.values(scoresData[scoreEntryKey]).forEach((s: any) => {
+          totalScore += (Number(s.score) || 0);
+          totalTime += (Number(s.time_taken) || 0);
         });
       }
       return { ...t, totalScore, totalTime };
