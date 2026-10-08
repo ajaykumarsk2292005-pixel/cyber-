@@ -114,17 +114,27 @@ async function initializeState() {
 
 async function persistState() {
   if (supabaseUrl !== 'https://placeholder.supabase.co') {
-    const { error } = await supabase.storage.from('cyberhunt-media')
-      .upload('state.json', JSON.stringify(globalThis.__cyberhunt_state), {
-        contentType: 'application/json',
-        upsert: true
-      });
-    if (error) throw error;
+    try {
+      const { error } = await supabase.storage.from('cyberhunt-media')
+        .upload('state.json', JSON.stringify(globalThis.__cyberhunt_state), {
+          contentType: 'application/json',
+          upsert: true
+        });
+      if (error) {
+        console.error("Supabase state persist error:", error);
+      }
+    } catch (e) {
+      console.error("Supabase exception:", e);
+    }
     return;
   }
 
-  const localPath = path.join(process.cwd(), '.next', 'local_state.json');
-  fs.writeFileSync(localPath, JSON.stringify(globalThis.__cyberhunt_state));
+  try {
+    const localPath = path.join(process.cwd(), '.next', 'local_state.json');
+    fs.writeFileSync(localPath, JSON.stringify(globalThis.__cyberhunt_state));
+  } catch (e) {
+    console.error("Local state persist error:", e);
+  }
 }
 
 const getPublicState = () => {
@@ -361,7 +371,7 @@ export async function POST(req: Request) {
         }
       } catch (error) {
         console.error("Score table persistence error:", error);
-        return NextResponse.json({ error: "Failed to persist score" }, { status: 500 });
+        // Fallback to memory, don't return 500
       }
     }
 
@@ -369,7 +379,6 @@ export async function POST(req: Request) {
       await persistState();
     } catch (err) {
       console.error("Storage state sync error:", err);
-      return NextResponse.json({ error: "Failed to persist shared state" }, { status: 500 });
     }
 
     const responseState = verifyAdminSession(getAdminSessionToken(req.headers.get('cookie')))
