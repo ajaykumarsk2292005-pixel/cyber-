@@ -24,6 +24,7 @@ declare global {
     verifiedPasskeys?: Record<string, Record<string, boolean>>;
     sessionStartedAt?: Record<string, Record<string, number>>;
     _initialized_from_storage?: boolean;
+    _scores_hydrated?: boolean;
   } | undefined;
 }
 
@@ -165,19 +166,29 @@ const isSessionOpenForTeam = (teamAlias: string, session: string) => {
 
 async function hydrateDatabaseScores() {
   if (supabaseUrl === 'https://placeholder.supabase.co') return;
-  const { data, error } = await supabase
-    .from('scores')
-    .select('team_alias, session_number, score, time_taken');
-  if (error || !data) return;
+  if (globalThis.__cyberhunt_state?._scores_hydrated) return;
 
-  if (!globalThis.__cyberhunt_state!.scores) globalThis.__cyberhunt_state!.scores = {};
-  for (const entry of data) {
-    const teamAlias = String(entry.team_alias);
-    if (!globalThis.__cyberhunt_state!.scores[teamAlias]) globalThis.__cyberhunt_state!.scores[teamAlias] = {};
-    globalThis.__cyberhunt_state!.scores[teamAlias][String(entry.session_number)] = {
-      score: Number(entry.score) || 0,
-      time_taken: Number(entry.time_taken) || 0,
-    };
+  try {
+    const { data, error } = await supabase
+      .from('scores')
+      .select('team_alias, session_number, score, time_taken');
+    
+    globalThis.__cyberhunt_state!._scores_hydrated = true;
+    
+    if (error || !data) return;
+
+    if (!globalThis.__cyberhunt_state!.scores) globalThis.__cyberhunt_state!.scores = {};
+    for (const entry of data) {
+      const teamAlias = String(entry.team_alias);
+      if (!globalThis.__cyberhunt_state!.scores[teamAlias]) globalThis.__cyberhunt_state!.scores[teamAlias] = {};
+      globalThis.__cyberhunt_state!.scores[teamAlias][String(entry.session_number)] = {
+        score: Number(entry.score) || 0,
+        time_taken: Number(entry.time_taken) || 0,
+      };
+    }
+  } catch (e) {
+    globalThis.__cyberhunt_state!._scores_hydrated = true;
+    console.error("Hydrate error", e);
   }
 }
 
