@@ -51,15 +51,8 @@ export default function AdminDashboard() {
       
       if (hasRemoteData) {
         setSessionStates(prev => {
-          const newStates = { ...prev, ...states };
-          localStorage.setItem("cyberhunt_session_states", JSON.stringify(newStates));
-          return newStates;
+          return { ...prev, ...states };
         });
-      } else {
-        const localStates = localStorage.getItem("cyberhunt_session_states");
-        if (localStates) {
-          setSessionStates(JSON.parse(localStates));
-        }
       }
     };
     loadSessionStates();
@@ -68,21 +61,12 @@ export default function AdminDashboard() {
   const handleUpdateSessionState = async (session: number, status: "STANDBY" | "ACTIVE" | "PAUSED" | "ENDED") => {
     const previousStatus = sessionStates[session];
     // Optimistic UI update
-    setSessionStates(prev => {
-      const newStates = { ...prev, [session]: status };
-      // Fallback save to localStorage
-      localStorage.setItem("cyberhunt_session_states", JSON.stringify(newStates));
-      return newStates;
-    });
+    setSessionStates(prev => ({ ...prev, [session]: status }));
     
     try {
       await broadcastSessionState(session, status);
     } catch {
-      setSessionStates(prev => {
-        const newStates = { ...prev, [session]: previousStatus };
-        localStorage.setItem("cyberhunt_session_states", JSON.stringify(newStates));
-        return newStates;
-      });
+      setSessionStates(prev => ({ ...prev, [session]: previousStatus }));
       alert("Unable to save session state. Check shared storage and try again.");
     }
   };
@@ -120,23 +104,6 @@ export default function AdminDashboard() {
     newTeams.splice(index, 1);
     setTeams(newTeams);
     
-    const localTeams = JSON.parse(localStorage.getItem("cyberhunt_teams") || "[]");
-    const updatedLocal = localTeams.filter((t: any) => t.teamAlias !== teamToDelete.teamAlias && t.team_alias !== teamToDelete.team_alias && t.teamAlias !== teamToDelete.team_alias && t.team_alias !== teamToDelete.teamAlias);
-    localStorage.setItem("cyberhunt_teams", JSON.stringify(updatedLocal));
-
-    // Persistent Admin Blacklist
-    try {
-      let localDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
-      if (!Array.isArray(localDeleted)) localDeleted = [];
-      const aliasToBlock = String(teamToDelete.team_alias || teamToDelete.teamAlias || "").trim().toLowerCase();
-      if (aliasToBlock && !localDeleted.includes(aliasToBlock)) {
-        localDeleted.push(aliasToBlock);
-        localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify(localDeleted));
-      }
-    } catch(e) {
-      const aliasToBlock = String(teamToDelete.team_alias || teamToDelete.teamAlias || "").trim().toLowerCase();
-      if (aliasToBlock) localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify([aliasToBlock]));
-    }
     // Update API memory state fallback
     try {
       await fetch('/api/state', {
@@ -155,9 +122,6 @@ export default function AdminDashboard() {
     newTeams[index] = editingTeamData;
     setTeams(newTeams);
     setEditingTeamIndex(null);
-    
-    // Update local storage
-    localStorage.setItem("cyberhunt_teams", JSON.stringify([...newTeams].reverse()));
     
     // Update API memory state fallback
     try {
@@ -181,16 +145,16 @@ export default function AdminDashboard() {
     const h4 = await fetchSessionPasskeyHint(4);
     
     setPasskeys({
-      1: p1 || localStorage.getItem("passkey_1") || "SEASON2-ACCESS",
-      2: p2 || localStorage.getItem("passkey_2") || "SEASON3-ACCESS",
-      3: p3 || localStorage.getItem("passkey_3") || "SEASON4-ACCESS",
-      4: p4 || localStorage.getItem("passkey_4") || "OVERRIDE-INIT"
+      1: p1 || "SEASON2-ACCESS",
+      2: p2 || "SEASON3-ACCESS",
+      3: p3 || "SEASON4-ACCESS",
+      4: p4 || "OVERRIDE-INIT"
     });
     setPasskeyHints({
-      1: h1 || localStorage.getItem("passkey_hint_1") || "All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.",
-      2: h2 || localStorage.getItem("passkey_hint_2") || "Visual reconnaissance complete. Target located. Awaiting Season 3 authentication passkey.",
-      3: h3 || localStorage.getItem("passkey_hint_3") || "Critical infrastructure reached. System lockdown initiated. Final authentication required.",
-      4: h4 || localStorage.getItem("passkey_hint_4") || "All subsystems compromised. Awaiting final master override sequence to capture the flag."
+      1: h1 || "All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.",
+      2: h2 || "Visual reconnaissance complete. Target located. Awaiting Season 3 authentication passkey.",
+      3: h3 || "Critical infrastructure reached. System lockdown initiated. Final authentication required.",
+      4: h4 || "All subsystems compromised. Awaiting final master override sequence to capture the flag."
     });
   };
 
@@ -233,18 +197,6 @@ export default function AdminDashboard() {
           if (memoryState && memoryState.deleted_teams) memoryDeleted = memoryState.deleted_teams;
           if (memoryState && memoryState.teams) {
             memoryTeams = memoryState.teams;
-            
-            // Clean up localDeleted: if API says they are active (in memoryTeams), they shouldn't be locally deleted
-            try {
-              let currentLocalDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
-              if (Array.isArray(currentLocalDeleted)) {
-                const memoryAliasesLower = memoryTeams.map((t: any) => String(t.team_alias || t.teamAlias || "").trim().toLowerCase());
-                const newLocalDeleted = currentLocalDeleted.filter(d => !memoryAliasesLower.includes(String(d).trim().toLowerCase()));
-                if (newLocalDeleted.length !== currentLocalDeleted.length) {
-                  localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify(newLocalDeleted));
-                }
-              }
-            } catch(e) {}
           }
           if (memoryState && memoryState.progress) setProgressData(memoryState.progress);
           if (memoryState && memoryState.scores) setScoresData(memoryState.scores);
@@ -253,62 +205,16 @@ export default function AdminDashboard() {
         console.error("API fetch error", e);
       }
 
-      // Sync local deleted teams back to API to ensure participants' leaderboard drops them properly
-      try {
-        const localDeleted = JSON.parse(localStorage.getItem("cyberhunt_deleted_teams") || "[]");
-        if (Array.isArray(localDeleted) && localDeleted.length > 0) {
-          // Merge with memory deleted just in case
-          const mergedDeleted = Array.from(new Set([...memoryDeleted, ...localDeleted]));
-          await fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'sync_deleted_teams', deleted_teams: mergedDeleted })
-          });
-        }
-      } catch(e) {}
-
-      let allTeamsMap = new Map();
-      
-      // 1. Add from localStorage
-      try {
-        const localTeams = JSON.parse(localStorage.getItem("cyberhunt_teams") || "[]");
-        if (Array.isArray(localTeams)) {
-          localTeams.forEach(t => {
-            const alias = t.team_alias || t.teamAlias;
-            if (alias) allTeamsMap.set(alias, t);
-          });
-        }
-      } catch(e) {}
-
-      // 2. Add from Supabase
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-        const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: true });
-        if (!error && data) {
-          data.forEach(t => {
-            const alias = t.team_alias || t.teamAlias;
-            if (alias) allTeamsMap.set(alias, t);
-          });
-        }
-      }
-
-      // Shared state contains admin edits and must win over stale database/local values.
-      if (Array.isArray(memoryTeams)) {
-        memoryTeams.forEach(t => {
-          const alias = t.team_alias || t.teamAlias;
-          if (alias) allTeamsMap.set(alias, t);
-        });
-      }
-
-      let mergedTeams = Array.from(allTeamsMap.values());
+      let mergedTeams = Array.from(memoryTeams || []);
       
       // Sort by created_at desc (newest first)
-      mergedTeams.sort((a, b) => {
+      mergedTeams.sort((a: any, b: any) => {
         const dateA = new Date(a.created_at || 0).getTime();
         const dateB = new Date(b.created_at || 0).getTime();
         return dateB - dateA;
       });
 
-      setTeams(filterRealTeams(mergedTeams));
+      setTeams(mergedTeams.filter(t => t.college !== 'SYS_STATE' && t.college !== 'SYS'));
     } catch (e) {
       console.error("Critical error in fetchTeamsData", e);
     } finally {
@@ -337,8 +243,6 @@ export default function AdminDashboard() {
       await broadcastSessionPasskeyHint(seasonId, tempPasskeyHint);
       setPasskeys(prev => ({...prev, [seasonId]: nextPasskey}));
       setPasskeyHints(prev => ({...prev, [seasonId]: tempPasskeyHint}));
-      localStorage.setItem(`passkey_${seasonId}`, nextPasskey);
-      localStorage.setItem(`passkey_hint_${seasonId}`, tempPasskeyHint);
       setEditingPasskey(null);
       setPasskeySuccess(`Successfully updated passkey!`);
       setTimeout(() => setPasskeySuccess(null), 3000);
@@ -790,15 +694,15 @@ export default function AdminDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     <div className="p-4 border border-zinc-800 bg-zinc-900/50 text-center">
                       <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Session 1 Passkey</div>
-                      <div className="text-green-400 font-mono font-bold">{passkeys[1] || typeof window !== 'undefined' && localStorage.getItem('passkey_1') || "SEASON2-ACCESS"}</div>
+                      <div className="text-green-400 font-mono font-bold">{passkeys[1] || "SEASON2-ACCESS"}</div>
                     </div>
                     <div className="p-4 border border-zinc-800 bg-zinc-900/50 text-center">
                       <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Session 2 Passkey</div>
-                      <div className="text-green-400 font-mono font-bold">{passkeys[2] || typeof window !== 'undefined' && localStorage.getItem('passkey_2') || "SEASON3-ACCESS"}</div>
+                      <div className="text-green-400 font-mono font-bold">{passkeys[2] || "SEASON3-ACCESS"}</div>
                     </div>
                     <div className="p-4 border border-zinc-800 bg-zinc-900/50 text-center">
                       <div className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Session 3 Passkey</div>
-                      <div className="text-green-400 font-mono font-bold">{passkeys[3] || typeof window !== 'undefined' && localStorage.getItem('passkey_3') || "SEASON4-ACCESS"}</div>
+                      <div className="text-green-400 font-mono font-bold">{passkeys[3] || "SEASON4-ACCESS"}</div>
                     </div>
                   </div>
 
