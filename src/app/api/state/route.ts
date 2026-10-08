@@ -331,7 +331,8 @@ export async function POST(req: Request) {
     if (data.type === 'update_session') {
       globalThis.__cyberhunt_state!.sessions[data.session] = data.status;
       if (supabaseUrl !== 'https://placeholder.supabase.co') {
-         await supabase.from('sessions').upsert({ session_number: Number(data.session), status: data.status }, { onConflict: 'session_number' });
+         const { error } = await supabase.from('sessions').update({ status: data.status }).eq('session_number', Number(data.session));
+         if (error) console.error("Error updating session:", error);
       }
     } 
     else if (data.type === 'update_questions') {
@@ -354,7 +355,8 @@ export async function POST(req: Request) {
       if (!globalThis.__cyberhunt_state!.passkeys) globalThis.__cyberhunt_state!.passkeys = {};
       globalThis.__cyberhunt_state!.passkeys[data.session] = data.passkey;
       if (supabaseUrl !== 'https://placeholder.supabase.co') {
-         await supabase.from('sessions').upsert({ session_number: Number(data.session), passkey: data.passkey }, { onConflict: 'session_number' });
+         const { error } = await supabase.from('sessions').update({ passkey: data.passkey }).eq('session_number', Number(data.session));
+         if (error) console.error("Error updating passkey:", error);
       }
     }
     else if (data.type === 'update_passkey_hint') {
@@ -377,13 +379,14 @@ export async function POST(req: Request) {
         );
       }
       if (supabaseUrl !== 'https://placeholder.supabase.co') {
-         await supabase.from('teams').upsert({
+         const { error } = await supabase.from('teams').upsert({
            team_alias: alias,
            node_alpha: data.team.nodeAlpha || data.team.node_alpha || '',
            node_beta: data.team.nodeBeta || data.team.node_beta || '',
            college: data.team.college || '',
            status: data.team.status || 'WAITING'
          }, { onConflict: 'team_alias' });
+         if (error) console.error("Error registering team:", error);
       }
     }
     else if (data.type === 'delete_team') {
