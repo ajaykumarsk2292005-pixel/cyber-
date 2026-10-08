@@ -17,6 +17,8 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
   const [tempPasskey, setTempPasskey] = useState("");
   const [tempPasskeyHint, setTempPasskeyHint] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingPasskey, setIsSavingPasskey] = useState(false);
+  const [passkeyError, setPasskeyError] = useState("");
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -87,15 +89,29 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
   const [passkeySuccess, setPasskeySuccess] = useState(false);
 
   const handleSavePasskey = async () => {
-    setPasskey(tempPasskey);
-    setPasskeyHint(tempPasskeyHint);
-    await broadcastSessionPasskey(sessionNumber, tempPasskey);
-    await broadcastSessionPasskeyHint(sessionNumber, tempPasskeyHint);
-    localStorage.setItem(`passkey_${sessionNumber}`, tempPasskey);
-    localStorage.setItem(`passkey_hint_${sessionNumber}`, tempPasskeyHint);
-    setIsEditingPasskey(false);
-    setPasskeySuccess(true);
-    setTimeout(() => setPasskeySuccess(false), 2000);
+    const nextPasskey = tempPasskey.trim();
+    if (!nextPasskey) {
+      setPasskeyError("Passkey cannot be empty.");
+      return;
+    }
+
+    setIsSavingPasskey(true);
+    setPasskeyError("");
+    try {
+      await broadcastSessionPasskey(sessionNumber, nextPasskey);
+      await broadcastSessionPasskeyHint(sessionNumber, tempPasskeyHint);
+      setPasskey(nextPasskey);
+      setPasskeyHint(tempPasskeyHint);
+      localStorage.setItem(`passkey_${sessionNumber}`, nextPasskey);
+      localStorage.setItem(`passkey_hint_${sessionNumber}`, tempPasskeyHint);
+      setIsEditingPasskey(false);
+      setPasskeySuccess(true);
+      setTimeout(() => setPasskeySuccess(false), 2000);
+    } catch {
+      setPasskeyError("Could not save passkey. Check shared storage and try again.");
+    } finally {
+      setIsSavingPasskey(false);
+    }
   };
 
   const handleSave = async (index: number) => {
@@ -294,10 +310,13 @@ export function QuestionManager({ sessionNumber }: { sessionNumber: number }) {
             {passkeySuccess && (
               <span className="text-green-500 text-xs animate-pulse mb-2">Saved successfully!</span>
             )}
+            {passkeyError && (
+              <span role="alert" className="text-red-400 text-xs mb-2">{passkeyError}</span>
+            )}
             {isEditingPasskey ? (
               <div className="flex items-center gap-2">
-                <button onClick={handleSavePasskey} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors px-4 py-2 text-xs font-bold uppercase tracking-widest flex items-center gap-2"><Save className="w-4 h-4"/> Save</button>
-                <button onClick={() => setIsEditingPasskey(false)} className="bg-zinc-900 border border-zinc-700 text-zinc-500 hover:text-white transition-colors px-4 py-2 text-xs font-bold uppercase tracking-widest">Cancel</button>
+                <button onClick={handleSavePasskey} disabled={isSavingPasskey || !tempPasskey.trim()} className="bg-green-950/50 border border-green-500/30 text-green-500 hover:text-green-400 transition-colors px-4 py-2 text-xs font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50"><Save className="w-4 h-4"/> {isSavingPasskey ? "Saving" : "Save"}</button>
+                <button onClick={() => setIsEditingPasskey(false)} disabled={isSavingPasskey} className="bg-zinc-900 border border-zinc-700 text-zinc-500 hover:text-white transition-colors px-4 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50">Cancel</button>
               </div>
             ) : (
               <button 

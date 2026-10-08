@@ -31,6 +31,20 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Before deploying, configure these variables for Production and Preview in the Vercel project settings:
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase public anon key |
+| `ADMIN_USERNAME` | Admin login username |
+| `ADMIN_PASSWORD` | Admin login password; use a unique, strong value |
+| `ADMIN_SESSION_SECRET` | Random signing secret of at least 32 characters |
+
+Generate a signing secret locally with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` and enter it directly in Vercel's environment-variable interface. Do not commit production values or paste them into source files.
+
+The admin dashboard requires the server-issued HttpOnly session cookie. Production login requires the Vercel variables above. Local development falls back to the previous credentials (`Ajay` / `212006`) only when variables are unset; this fallback is disabled in production.
+
+The easiest way to deploy this Next.js app is through the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme).
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

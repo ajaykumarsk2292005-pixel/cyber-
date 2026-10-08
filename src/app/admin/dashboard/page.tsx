@@ -66,6 +66,7 @@ export default function AdminDashboard() {
   }, []);
 
   const handleUpdateSessionState = async (session: number, status: "STANDBY" | "ACTIVE" | "PAUSED" | "ENDED") => {
+    const previousStatus = sessionStates[session];
     // Optimistic UI update
     setSessionStates(prev => {
       const newStates = { ...prev, [session]: status };
@@ -74,8 +75,16 @@ export default function AdminDashboard() {
       return newStates;
     });
     
-    // Save to Supabase if configured (fire and forget)
-    await broadcastSessionState(session, status);
+    try {
+      await broadcastSessionState(session, status);
+    } catch {
+      setSessionStates(prev => {
+        const newStates = { ...prev, [session]: previousStatus };
+        localStorage.setItem("cyberhunt_session_states", JSON.stringify(newStates));
+        return newStates;
+      });
+      alert("Unable to save session state. Check shared storage and try again.");
+    }
   };
 
   const [passkeys, setPasskeys] = useState<Record<number, string>>({
@@ -128,13 +137,6 @@ export default function AdminDashboard() {
       const aliasToBlock = String(teamToDelete.team_alias || teamToDelete.teamAlias || "").trim().toLowerCase();
       if (aliasToBlock) localStorage.setItem("cyberhunt_deleted_teams", JSON.stringify([aliasToBlock]));
     }
-    // Update Supabase if connected
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-      try {
-        await supabase.from('teams').delete().eq('team_alias', teamToDelete.team_alias || teamToDelete.teamAlias);
-      } catch(e) {}
-    }
-    
     // Update API memory state fallback
     try {
       await fetch('/api/state', {
@@ -157,18 +159,6 @@ export default function AdminDashboard() {
     // Update local storage
     localStorage.setItem("cyberhunt_teams", JSON.stringify([...newTeams].reverse()));
     
-    // Update Supabase if connected
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-      try {
-        await supabase.from('teams').update({
-          college: editingTeamData.college,
-          node_alpha: editingTeamData.node_alpha || editingTeamData.nodeAlpha,
-          node_beta: editingTeamData.node_beta || editingTeamData.nodeBeta,
-          status: editingTeamData.status
-        }).eq('team_alias', editingTeamData.team_alias || editingTeamData.teamAlias);
-      } catch(e) {}
-    }
-
     // Update API memory state fallback
     try {
       await fetch('/api/state', {
@@ -290,15 +280,7 @@ export default function AdminDashboard() {
         }
       } catch(e) {}
 
-      // 2. Add from memoryTeams (API)
-      if (Array.isArray(memoryTeams)) {
-        memoryTeams.forEach(t => {
-          const alias = t.team_alias || t.teamAlias;
-          if (alias) allTeamsMap.set(alias, t);
-        });
-      }
-
-      // 3. Add from Supabase
+      // 2. Add from Supabase
       if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
         const { data, error } = await supabase.from('teams').select('*').order('created_at', { ascending: true });
         if (!error && data) {
@@ -307,6 +289,14 @@ export default function AdminDashboard() {
             if (alias) allTeamsMap.set(alias, t);
           });
         }
+      }
+
+      // Shared state contains admin edits and must win over stale database/local values.
+      if (Array.isArray(memoryTeams)) {
+        memoryTeams.forEach(t => {
+          const alias = t.team_alias || t.teamAlias;
+          if (alias) allTeamsMap.set(alias, t);
+        });
       }
 
       let mergedTeams = Array.from(allTeamsMap.values());
@@ -335,12 +325,19 @@ export default function AdminDashboard() {
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
   const handleSavePasskey = async (seasonId: number) => {
+    const nextPasskey = tempPasskey.trim();
+    if (!nextPasskey) {
+      setPasskeyError("Passkey cannot be empty.");
+      setTimeout(() => setPasskeyError(null), 3000);
+      return;
+    }
+
     try {
-      await broadcastSessionPasskey(seasonId, tempPasskey);
+      await broadcastSessionPasskey(seasonId, nextPasskey);
       await broadcastSessionPasskeyHint(seasonId, tempPasskeyHint);
-      setPasskeys(prev => ({...prev, [seasonId]: tempPasskey}));
+      setPasskeys(prev => ({...prev, [seasonId]: nextPasskey}));
       setPasskeyHints(prev => ({...prev, [seasonId]: tempPasskeyHint}));
-      localStorage.setItem(`passkey_${seasonId}`, tempPasskey);
+      localStorage.setItem(`passkey_${seasonId}`, nextPasskey);
       localStorage.setItem(`passkey_hint_${seasonId}`, tempPasskeyHint);
       setEditingPasskey(null);
       setPasskeySuccess(`Successfully updated passkey!`);
@@ -464,9 +461,11 @@ export default function AdminDashboard() {
         </nav>
 
         <div className="p-4 border-t border-zinc-800">
-          <Link href="/" className="flex items-center gap-3 px-4 py-3 text-zinc-400 font-mono text-xs uppercase tracking-widest hover:text-white hover:bg-zinc-900 transition-colors">
-            <LogOut className="w-4 h-4" /> Terminate Link
-          </Link>
+          <form action="/api/admin/logout" method="post">
+            <button type="submit" className="flex w-full items-center gap-3 px-4 py-3 text-zinc-400 font-mono text-xs uppercase tracking-widest hover:text-white hover:bg-zinc-900 transition-colors">
+              <LogOut className="w-4 h-4" /> Terminate Link
+            </button>
+          </form>
         </div>
       </aside>
 
@@ -781,6 +780,8 @@ export default function AdminDashboard() {
                 <p className="text-sm text-zinc-500 font-mono mb-6 pb-6 border-b border-zinc-800">
                   Manage the final section. These are the hints participants will use to crack the final override.
                 </p>
+                {passkeySuccess && <p role="status" className="mb-4 text-sm text-green-400">{passkeySuccess}</p>}
+                {passkeyError && <p role="alert" className="mb-4 text-sm text-red-400">{passkeyError}</p>}
                 
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-300">Discovered Passkeys (Hints)</h3>

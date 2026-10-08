@@ -6,19 +6,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
-import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskeyHint, submitSessionScore, verifyQuestionAnswer, verifySessionPasskey } from "@/lib/stateSync";
 
 export default function SessionOne() {
   const router = useRouter();
   
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [submittedAnswers, setSubmittedAnswers] = useState<string[]>([]);
+  const [submittedAnswers, setSubmittedAnswers] = useState<boolean[]>([]);
   
   const [isCompleted, setIsCompleted] = useState(false);
   const [passkey, setPasskey] = useState("");
   const [passkeyHint, setPasskeyHint] = useState("All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.");
   const [passkeyError, setPasskeyError] = useState(false);
+  const [passkeyMessage, setPasskeyMessage] = useState("");
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
   const [timeLeft, setTimeLeft] = useState<number>(600);
 
@@ -35,15 +36,19 @@ export default function SessionOne() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    let storedRemaining = localStorage.getItem("session_1_timeleft");
-    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 600; // 10 minutes
+    const storedRemaining = localStorage.getItem("session_1_timeleft");
+    const parsedRemaining = storedRemaining === null ? 600 : Number(storedRemaining);
+    const initialRemaining = Number.isFinite(parsedRemaining)
+      ? Math.min(Math.max(parsedRemaining, 0), 600)
+      : 600;
+    localStorage.setItem("session_1_timeleft", initialRemaining.toString());
     setTimeLeft(initialRemaining);
 
     const updateTimer = () => {
       setTimeLeft(prev => {
-        if (prev <= 0) {
-          setIsCompleted(true);
-          localStorage.setItem("session_1_completed", "true");
+        if (prev <= 1) {
+          setSessionStatus("ENDED");
+          localStorage.setItem("session_1_timeleft", "0");
           return 0;
         }
         const newTime = prev - 1;
@@ -74,7 +79,9 @@ export default function SessionOne() {
         remoteStatus = await fetchSessionState(1);
       }
 
-      if (remoteStatus) {
+      if (localStorage.getItem("session_1_timeleft") === "0") {
+        finalStatus = "ENDED";
+      } else if (remoteStatus) {
         if (remoteStatus === "STANDBY" && localStatus && localStatus !== "STANDBY") {
           finalStatus = localStatus;
         } else {
@@ -134,15 +141,15 @@ export default function SessionOne() {
 
   const currentQ = questions[currentIndex];
 
-  const handleOptionSelect = (option: string, index: number) => {
-    setSubmittedAnswers(prev => [...prev, option]);
+  const handleOptionSelect = async (option: string, index: number) => {
+    const isCorrect = await verifyQuestionAnswer(1, currentIndex, option);
+    setSubmittedAnswers(prev => [...prev, isCorrect]);
     
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       setIsCompleted(true);
       localStorage.setItem("session_1_completed", "true");
-      // You could evaluate the score here by comparing submittedAnswers with questions.answer
     }
   };
 
@@ -152,36 +159,23 @@ export default function SessionOne() {
     e.preventDefault();
     if (isSubmittingPasskey) return;
     setIsSubmittingPasskey(true);
-    const remotePasskey = await fetchSessionPasskey(1);
-    const expectedPasskey = remotePasskey || localStorage.getItem("passkey_1") || "SEASON2-ACCESS";
-    
-    if (passkey.toUpperCase() === expectedPasskey.toUpperCase()) { 
-      // Calculate Score
-      let score = 5; // Passkey score
-      questions.forEach((q, i) => {
-        if (submittedAnswers[i] === q.answer) score += 1;
-      });
+    const isCorrect = await verifySessionPasskey(1, passkey);
 
-      // Calculate time taken
-      const timeleftStr = localStorage.getItem("session_1_timeleft");
-      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
-      const timeTaken = 600 - timeleft;
-
+    if (isCorrect) {
       try {
         const teamDataStr = localStorage.getItem("cyberhunt_team");
-        if (teamDataStr) {
-          const team = JSON.parse(teamDataStr);
-          await fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'submit_score', team_alias: team.teamAlias || team.team_alias, session: 1, score, time_taken: timeTaken })
-          });
-        }
-      } catch (e) {}
+        if (!teamDataStr) throw new Error("Team registration is missing");
+        const team = JSON.parse(teamDataStr);
+        await submitSessionScore(team.teamAlias || team.team_alias, 1);
 
-      localStorage.setItem("cyberhunt_current_session", "2");
-      router.push("/waiting"); 
+        localStorage.setItem("cyberhunt_current_session", "2");
+        router.push("/waiting");
+      } catch {
+        setPasskeyMessage("Your score could not be saved. Check your connection and submit again.");
+        setPasskeyError(true);
+      }
     } else {
+      setPasskeyMessage("ACCESS DENIED: INCORRECT PASSKEY");
       setPasskeyError(true);
       setTimeout(() => setPasskeyError(false), 1500);
     }
@@ -324,6 +318,7 @@ export default function SessionOne() {
                     </div>
                   )}
                 </div>
+                {passkeyMessage && <p role="alert" className="mt-2 text-xs text-red-400">{passkeyMessage}</p>}
                 <button 
                   type="submit"
                   className="w-full mt-4 py-4 bg-zinc-200 text-black font-bold tracking-widest uppercase hover:bg-white transition-all active:scale-[0.98]"

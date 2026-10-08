@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Shield, KeyRound, Terminal, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint, submitSessionScore, verifySessionPasskey } from "@/lib/stateSync";
 
 export default function SessionFourFinale() {
   const router = useRouter();
@@ -15,20 +15,24 @@ export default function SessionFourFinale() {
   const [passkeyHint, setPasskeyHint] = useState("All subsystems compromised. Awaiting final master override sequence to capture the flag.");
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [masterPasskey, setMasterPasskey] = useState("OVERRIDE-INIT");
   const [isSubmittingPasskey, setIsSubmittingPasskey] = useState(false);
 
   useEffect(() => {
     if (isSuccess || sessionStatus !== "ACTIVE") return;
 
-    let storedRemaining = localStorage.getItem("session_4_timeleft");
-    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 1500; // 25 minutes
+    const storedRemaining = localStorage.getItem("session_4_timeleft");
+    const parsedRemaining = storedRemaining === null ? 1500 : Number(storedRemaining);
+    const initialRemaining = Number.isFinite(parsedRemaining)
+      ? Math.min(Math.max(parsedRemaining, 0), 1500)
+      : 1500;
+    localStorage.setItem("session_4_timeleft", initialRemaining.toString());
     setTimeLeft(initialRemaining);
 
     const updateTimer = () => {
       setTimeLeft(prev => {
-        if (prev <= 0) {
+        if (prev <= 1) {
           setSessionStatus("ENDED");
+          localStorage.setItem("session_4_timeleft", "0");
           return 0;
         }
         const newTime = prev - 1;
@@ -67,17 +71,11 @@ export default function SessionFourFinale() {
       const p1 = await fetchSessionPasskey(1);
       const p2 = await fetchSessionPasskey(2);
       const p3 = await fetchSessionPasskey(3);
-      const p4 = await fetchSessionPasskey(4);
-
       setPasskeys({
         1: p1 || localStorage.getItem("passkey_1") || "SEASON2-ACCESS",
         2: p2 || localStorage.getItem("passkey_2") || "SEASON3-ACCESS",
         3: p3 || localStorage.getItem("passkey_3") || "SEASON4-ACCESS"
       });
-
-      if (p4 || localStorage.getItem("passkey_4")) {
-        setMasterPasskey(p4 || localStorage.getItem("passkey_4") || "OVERRIDE-INIT");
-      }
 
       const savedHint = await fetchSessionPasskeyHint(4);
       if (savedHint) {
@@ -90,7 +88,7 @@ export default function SessionFourFinale() {
     loadHints();
 
     const pollStatus = async () => {
-      let finalStatus = null;
+      let finalStatus: string | null = null;
       const localStates = localStorage.getItem("cyberhunt_session_states");
       let localStatus = null;
       if (localStates) {
@@ -98,13 +96,16 @@ export default function SessionFourFinale() {
         if (parsed[4]) localStatus = parsed[4];
       }
 
-      let remoteStatus = null;
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
-        remoteStatus = await fetchSessionState(4);
-      }
+      const remoteStatus = await fetchSessionState(4);
 
-      if (remoteStatus) {
-        finalStatus = remoteStatus;
+      if (localStorage.getItem("session_4_timeleft") === "0") {
+        finalStatus = "ENDED";
+      } else if (remoteStatus) {
+        if (remoteStatus === "STANDBY" && localStatus && localStatus !== "STANDBY") {
+          finalStatus = localStatus;
+        } else {
+          finalStatus = remoteStatus;
+        }
       } else if (localStatus) {
         finalStatus = localStatus;
       }
@@ -179,32 +180,17 @@ export default function SessionFourFinale() {
     e.preventDefault();
     if (isSubmittingPasskey) return;
     setIsSubmittingPasskey(true);
-    const remotePasskey = await fetchSessionPasskey(4);
-    const expectedPasskey = remotePasskey || localStorage.getItem("passkey_4") || "OVERRIDE-INIT";
+    const isCorrect = await verifySessionPasskey(4, inputValue);
 
-    if (inputValue.trim().toUpperCase() === expectedPasskey.toUpperCase()) {
-      setIsSuccess(true);
+    if (isCorrect) {
       setErrorMsg("");
-
-      // Calculate Score
-      let score = 10; // Final passkey score
-
-      // Calculate time taken
-      const timeleftStr = localStorage.getItem("session_4_timeleft");
-      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
-      const timeTaken = 1500 - timeleft;
 
       try {
         const teamDataStr = localStorage.getItem("cyberhunt_team");
-        if (teamDataStr) {
-          const teamData = JSON.parse(teamDataStr);
-          await fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'submit_score', team_alias: teamData.teamAlias || teamData.team_alias, session: 4, score, time_taken: timeTaken })
-          });
-        }
-      } catch (e) {}
+        if (!teamDataStr) throw new Error("Team registration is missing");
+        const teamData = JSON.parse(teamDataStr);
+        await submitSessionScore(teamData.teamAlias || teamData.team_alias, 4);
+        setIsSuccess(true);
 
       // Mark as completed
       if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder.supabase.co') {
@@ -215,6 +201,9 @@ export default function SessionFourFinale() {
            const { supabase } = require("@/lib/supabase");
            supabase.from('teams').update({ status: 'COMPLETED' }).eq('team_alias', teamData.teamAlias).then(() => {});
         }
+      }
+      } catch {
+        setErrorMsg("Your score could not be saved. Check your connection and submit again.");
       }
     } else {
       setErrorMsg("ACCESS DENIED: INCORRECT PASSKEY");

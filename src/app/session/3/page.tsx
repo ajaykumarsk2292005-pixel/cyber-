@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
-import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskeyHint, submitSessionScore, verifyQuestionAnswer, verifySessionPasskey } from "@/lib/stateSync";
 
 export default function SessionThree() {
   const router = useRouter();
@@ -32,6 +32,7 @@ export default function SessionThree() {
   const [passkey, setPasskey] = useState("");
   const [passkeyHint, setPasskeyHint] = useState("Critical infrastructure reached. System lockdown initiated. Final authentication required.");
   const [passkeyError, setPasskeyError] = useState(false);
+  const [passkeyMessage, setPasskeyMessage] = useState("");
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
   const [timeLeft, setTimeLeft] = useState<number>(1500);
 
@@ -50,15 +51,19 @@ export default function SessionThree() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    let storedRemaining = localStorage.getItem("session_3_timeleft");
-    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 1500; // 25 minutes
+    const storedRemaining = localStorage.getItem("session_3_timeleft");
+    const parsedRemaining = storedRemaining === null ? 1500 : Number(storedRemaining);
+    const initialRemaining = Number.isFinite(parsedRemaining)
+      ? Math.min(Math.max(parsedRemaining, 0), 1500)
+      : 1500;
+    localStorage.setItem("session_3_timeleft", initialRemaining.toString());
     setTimeLeft(initialRemaining);
 
     const updateTimer = () => {
       setTimeLeft(prev => {
-        if (prev <= 0) {
-          setIsCompleted(true);
-          localStorage.setItem("session_3_completed", "true");
+        if (prev <= 1) {
+          setSessionStatus("ENDED");
+          localStorage.setItem("session_3_timeleft", "0");
           return 0;
         }
         const newTime = prev - 1;
@@ -89,7 +94,9 @@ export default function SessionThree() {
         remoteStatus = await fetchSessionState(3);
       }
 
-      if (remoteStatus) {
+      if (localStorage.getItem("session_3_timeleft") === "0") {
+        finalStatus = "ENDED";
+      } else if (remoteStatus) {
         if (remoteStatus === "STANDBY" && localStatus && localStatus !== "STANDBY") {
           finalStatus = localStatus;
         } else {
@@ -166,34 +173,23 @@ export default function SessionThree() {
     e.preventDefault();
     if (isSubmittingPasskey) return;
     setIsSubmittingPasskey(true);
-    const remotePasskey = await fetchSessionPasskey(3);
-    const expectedPasskey = remotePasskey || localStorage.getItem("passkey_3") || "SEASON4-ACCESS";
+    const isCorrect = await verifySessionPasskey(3, passkey);
 
-    if (passkey.toUpperCase() === expectedPasskey.toUpperCase()) { 
-      // Calculate Score
-      let score = 5; // Section 3 passkey gives 5 based on rules
-      score += submittedAnswers.length * 10; // 10 marks per video challenge
-
-      // Calculate time taken
-      const timeleftStr = localStorage.getItem("session_3_timeleft");
-      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
-      const timeTaken = 1500 - timeleft;
-
+    if (isCorrect) {
       try {
         const teamDataStr = localStorage.getItem("cyberhunt_team");
-        if (teamDataStr) {
-          const team = JSON.parse(teamDataStr);
-          await fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'submit_score', team_alias: team.teamAlias || team.team_alias, session: 3, score, time_taken: timeTaken })
-          });
-        }
-      } catch (e) {}
+        if (!teamDataStr) throw new Error("Team registration is missing");
+        const team = JSON.parse(teamDataStr);
+        await submitSessionScore(team.teamAlias || team.team_alias, 3);
 
-      localStorage.setItem("cyberhunt_current_session", "4");
-      router.push("/waiting");
+        localStorage.setItem("cyberhunt_current_session", "4");
+        router.push("/waiting");
+      } catch {
+        setPasskeyMessage("Your score could not be saved. Check your connection and submit again.");
+        setPasskeyError(true);
+      }
     } else {
+      setPasskeyMessage("ACCESS DENIED: INCORRECT PASSKEY");
       setPasskeyError(true);
       setTimeout(() => setPasskeyError(false), 1500);
     }
@@ -339,10 +335,10 @@ export default function SessionThree() {
                   </p>
                 </div>
 
-                <form onSubmit={(e) => {
+                <form onSubmit={async (e) => {
                   e.preventDefault();
-                  if (answerInput.trim().toUpperCase() === currentQ.answer.toUpperCase()) {
-                    handleOptionSelect(currentQ.answer, 0);
+                  if (await verifyQuestionAnswer(3, currentIndex, answerInput)) {
+                    handleOptionSelect(answerInput, 0);
                     setAnswerInput("");
                     setAnswerError(false);
                   } else {
@@ -432,6 +428,7 @@ export default function SessionThree() {
                       </div>
                     )}
                   </div>
+                  {passkeyMessage && <p role="alert" className="mt-2 text-xs text-red-400">{passkeyMessage}</p>}
                   <button 
                     type="submit"
                     className="w-full mt-6 py-5 bg-red-950 hover:bg-red-800 text-white font-bold tracking-widest uppercase transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(220,38,38,0.2)] hover:shadow-[0_0_40px_rgba(220,38,38,0.5)] border border-red-500/50"

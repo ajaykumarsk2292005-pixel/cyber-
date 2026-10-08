@@ -1,39 +1,28 @@
 import { supabase } from "@/lib/supabase";
 
-// Since the user is unable to configure Supabase RLS policies properly,
-// we will use the `teams` table as an append-only event log to sync session states,
-// because `teams` allows public INSERT and SELECT.
+const getCurrentTeamAlias = () => {
+  try {
+    const team = JSON.parse(localStorage.getItem("cyberhunt_team") || "{}");
+    return team.teamAlias || team.team_alias || "";
+  } catch {
+    return "";
+  }
+};
 
 export const broadcastSessionState = async (sessionNumber: number, status: string) => {
   // Update local API in-memory state
   try {
-    await fetch('/api/state', {
+    const response = await fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'update_session', session: sessionNumber.toString(), status })
     });
+    if (!response.ok) throw new Error('Session state could not be persisted');
   } catch (e) {
     console.error("API update error", e);
+    throw e;
   }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
-    return;
-  }
-  try {
-    // Attempt standard update first (in case they fixed RLS)
-    await supabase.from('sessions').update({ status }).eq('session_number', sessionNumber);
-    
-    // Hack: Insert a state-marker team
-    await supabase.from('teams').insert({
-      team_alias: `_SYS_STATE_S${sessionNumber}_${status}_${Math.random().toString(36).substring(2, 8)}`,
-      node_alpha: 'SYS',
-      node_beta: 'SYS',
-      college: 'SYS_STATE',
-      status: 'WAITING'
-    });
-  } catch (e) {
-    console.error("Broadcast error", e);
-  }
 };
 
 export const fetchSessionState = async (sessionNumber: number): Promise<string | null> => {
@@ -48,28 +37,79 @@ export const fetchSessionState = async (sessionNumber: number): Promise<string |
   } catch (e) {
     console.error("API fetch error", e);
   }
-  return "STANDBY";
+  return null;
 };
 
 export const broadcastSessionPasskey = async (sessionNumber: number, passkey: string) => {
   try {
-    await fetch('/api/state', {
+    const response = await fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'update_passkey', session: sessionNumber.toString(), passkey })
     });
+    if (!response.ok) throw new Error('Passkey could not be persisted');
   } catch (e) {
     console.error("API update error", e);
+    throw e;
   }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
-    return;
-  }
+};
+
+export const verifySessionPasskey = async (sessionNumber: number, passkey: string): Promise<boolean> => {
   try {
-    await supabase.from('sessions').update({ passkey }).eq('session_number', sessionNumber);
+    const response = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'verify_passkey',
+        session: sessionNumber.toString(),
+        passkey,
+        team_alias: getCurrentTeamAlias(),
+      })
+    });
+    if (!response.ok) return false;
+    const result = await response.json();
+    return result.correct === true;
   } catch (e) {
-    console.error("Broadcast passkey error", e);
+    console.error("Passkey verification error", e);
+    return false;
   }
+};
+
+export const verifyQuestionAnswer = async (sessionNumber: number, questionIndex: number, answer: string): Promise<boolean> => {
+  try {
+    const response = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'verify_question_answer',
+        session: sessionNumber.toString(),
+        question_index: questionIndex,
+        answer,
+        team_alias: getCurrentTeamAlias(),
+      })
+    });
+    if (!response.ok) return false;
+    const result = await response.json();
+    return result.correct === true;
+  } catch (e) {
+    console.error("Question answer verification error", e);
+    return false;
+  }
+};
+
+export const submitSessionScore = async (teamAlias: string, sessionNumber: number) => {
+  const response = await fetch('/api/state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'submit_score',
+      team_alias: teamAlias,
+      session: sessionNumber,
+    })
+  });
+
+  if (!response.ok) throw new Error('Score could not be saved');
 };
 
 export const fetchSessionPasskey = async (sessionNumber: number): Promise<string | null> => {
@@ -80,6 +120,7 @@ export const fetchSessionPasskey = async (sessionNumber: number): Promise<string
       if (data && data.passkeys && data.passkeys[sessionNumber.toString()]) {
          return data.passkeys[sessionNumber.toString()];
       }
+      if (sessionNumber === 4) return null;
     }
   } catch (e) {
     console.error("API fetch error", e);
@@ -119,13 +160,15 @@ export const fetchSessionPasskeyHint = async (sessionNumber: number): Promise<st
 
 export const broadcastSessionPasskeyHint = async (sessionNumber: number, hint: string) => {
   try {
-    await fetch('/api/state', {
+    const response = await fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'update_passkey_hint', session: sessionNumber.toString(), hint })
     });
+    if (!response.ok) throw new Error('Passkey hint could not be persisted');
   } catch (e) {
     console.error("API update error", e);
+    throw e;
   }
 };
 
@@ -140,26 +183,6 @@ export const broadcastSessionQuestions = async (sessionNumber: number, questions
     console.error("API update error", e);
   }
 
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'https://placeholder.supabase.co') {
-    return;
-  }
-  try {
-    const { supabase } = require("@/lib/supabase");
-    await supabase.from('questions').delete().eq('session_number', sessionNumber);
-    if (questions.length > 0) {
-      const inserts = questions.map((q, idx) => ({
-        session_number: sessionNumber,
-        question_index: idx,
-        text: q.text,
-        options: q.options,
-        answer: q.answer,
-        media_url: q.mediaUrl || null
-      }));
-      await supabase.from('questions').insert(inserts);
-    }
-  } catch (e) {
-    console.error("Broadcast questions error", e);
-  }
 };
 
 export const fetchSessionQuestions = async (sessionNumber: number): Promise<any[] | null> => {
@@ -196,7 +219,6 @@ export const fetchSessionQuestions = async (sessionNumber: number): Promise<any[
         id: q.id,
         text: q.text,
         options: q.options,
-        answer: q.answer,
         mediaUrl: q.media_url
       }));
     }

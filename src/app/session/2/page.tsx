@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
-import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint } from "@/lib/stateSync";
+import { fetchSessionState, fetchSessionPasskeyHint, submitSessionScore, verifyQuestionAnswer, verifySessionPasskey } from "@/lib/stateSync";
 
 export default function SessionTwo() {
   const router = useRouter();
@@ -41,6 +41,7 @@ export default function SessionTwo() {
   const [passkey, setPasskey] = useState("");
   const [passkeyHint, setPasskeyHint] = useState("Neural link synchronized. The secondary firewall holds. Awaiting Season 3 authentication passkey.");
   const [passkeyError, setPasskeyError] = useState(false);
+  const [passkeyMessage, setPasskeyMessage] = useState("");
   const [sessionStatus, setSessionStatus] = useState<"STANDBY" | "ACTIVE" | "PAUSED" | "ENDED">("ACTIVE");
   const [timeLeft, setTimeLeft] = useState<number>(1200);
 
@@ -59,15 +60,19 @@ export default function SessionTwo() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    let storedRemaining = localStorage.getItem("session_2_timeleft");
-    let initialRemaining = storedRemaining ? parseInt(storedRemaining) : 1200; // 20 minutes
+    const storedRemaining = localStorage.getItem("session_2_timeleft");
+    const parsedRemaining = storedRemaining === null ? 1200 : Number(storedRemaining);
+    const initialRemaining = Number.isFinite(parsedRemaining)
+      ? Math.min(Math.max(parsedRemaining, 0), 1200)
+      : 1200;
+    localStorage.setItem("session_2_timeleft", initialRemaining.toString());
     setTimeLeft(initialRemaining);
 
     const updateTimer = () => {
       setTimeLeft(prev => {
-        if (prev <= 0) {
-          setIsCompleted(true);
-          localStorage.setItem("session_2_completed", "true");
+        if (prev <= 1) {
+          setSessionStatus("ENDED");
+          localStorage.setItem("session_2_timeleft", "0");
           return 0;
         }
         const newTime = prev - 1;
@@ -98,7 +103,9 @@ export default function SessionTwo() {
         remoteStatus = await fetchSessionState(2);
       }
 
-      if (remoteStatus) {
+      if (localStorage.getItem("session_2_timeleft") === "0") {
+        finalStatus = "ENDED";
+      } else if (remoteStatus) {
         if (remoteStatus === "STANDBY" && localStatus && localStatus !== "STANDBY") {
           finalStatus = localStatus;
         } else {
@@ -175,34 +182,23 @@ export default function SessionTwo() {
     e.preventDefault();
     if (isSubmittingPasskey) return;
     setIsSubmittingPasskey(true);
-    const remotePasskey = await fetchSessionPasskey(2);
-    const expectedPasskey = remotePasskey || localStorage.getItem("passkey_2") || "SEASON3-ACCESS";
-    
-    if (passkey.toUpperCase() === expectedPasskey.toUpperCase()) { 
-      // Calculate Score
-      let score = 5; // Passkey score
-      score += submittedAnswers.length * 5; // 5 marks per image solved
+    const isCorrect = await verifySessionPasskey(2, passkey);
 
-      // Calculate time taken
-      const timeleftStr = localStorage.getItem("session_2_timeleft");
-      const timeleft = timeleftStr ? parseInt(timeleftStr) : 0;
-      const timeTaken = 1200 - timeleft;
-
+    if (isCorrect) {
       try {
         const teamDataStr = localStorage.getItem("cyberhunt_team");
-        if (teamDataStr) {
-          const team = JSON.parse(teamDataStr);
-          await fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'submit_score', team_alias: team.teamAlias || team.team_alias, session: 2, score, time_taken: timeTaken })
-          });
-        }
-      } catch (e) {}
+        if (!teamDataStr) throw new Error("Team registration is missing");
+        const team = JSON.parse(teamDataStr);
+        await submitSessionScore(team.teamAlias || team.team_alias, 2);
 
-      localStorage.setItem("cyberhunt_current_session", "3");
-      router.push("/waiting"); 
+        localStorage.setItem("cyberhunt_current_session", "3");
+        router.push("/waiting");
+      } catch {
+        setPasskeyMessage("Your score could not be saved. Check your connection and submit again.");
+        setPasskeyError(true);
+      }
     } else {
+      setPasskeyMessage("ACCESS DENIED: INCORRECT PASSKEY");
       setPasskeyError(true);
       setTimeout(() => setPasskeyError(false), 1500);
     }
@@ -330,10 +326,10 @@ export default function SessionTwo() {
                   </p>
                 </div>
 
-                <form onSubmit={(e) => {
+                <form onSubmit={async (e) => {
                   e.preventDefault();
-                  if (answerInput.trim().toUpperCase() === currentQ.answer.toUpperCase()) {
-                    handleOptionSelect(currentQ.answer, 0);
+                  if (await verifyQuestionAnswer(2, currentIndex, answerInput)) {
+                    handleOptionSelect(answerInput, 0);
                     setAnswerInput("");
                     setAnswerError(false);
                   } else {
@@ -396,6 +392,7 @@ export default function SessionTwo() {
                     </div>
                   )}
                 </div>
+                {passkeyMessage && <p role="alert" className="mt-2 text-xs text-red-400">{passkeyMessage}</p>}
                 <button 
                   type="submit"
                   className="w-full mt-4 py-4 bg-zinc-200 text-black font-bold tracking-widest uppercase hover:bg-white transition-all active:scale-[0.98]"

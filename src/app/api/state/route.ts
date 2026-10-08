@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
+import { getAdminSessionToken, secureStringEqual, verifyAdminSession } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,9 @@ declare global {
     scores: Record<string, Record<string, { score: number, time_taken: number }>>;
     questions: Record<string, any[]>;
     passkeyHints?: Record<string, string>;
+    answerResults?: Record<string, Record<string, Record<string, boolean>>>;
+    verifiedPasskeys?: Record<string, Record<string, boolean>>;
+    sessionStartedAt?: Record<string, Record<string, number>>;
     _initialized_from_storage?: boolean;
   } | undefined;
 }
@@ -34,7 +38,8 @@ if (!globalThis.__cyberhunt_state) {
     passkeys: {
       "1": "SEASON2-ACCESS",
       "2": "SEASON3-ACCESS",
-      "3": "SEASON4-ACCESS"
+      "3": "SEASON4-ACCESS",
+      "4": "OVERRIDE-INIT"
     },
     passkeyHints: {
       "1": "All logic gates bypassed. The inner network is sealed. Awaiting Season 2 authentication passkey from Administrator.",
@@ -46,11 +51,14 @@ if (!globalThis.__cyberhunt_state) {
     deleted_teams: [],
     progress: {},
     scores: {},
-    questions: {}
+    questions: {},
+    answerResults: {},
+    verifiedPasskeys: {},
+    sessionStartedAt: {}
   };
 }
 
-export async function GET() {
+async function initializeState() {
   if (globalThis.__cyberhunt_state && !globalThis.__cyberhunt_state._initialized_from_storage) {
     if (supabaseUrl !== 'https://placeholder.supabase.co') {
       try {
@@ -61,6 +69,11 @@ export async function GET() {
           if (parsedState && parsedState.sessions) {
             globalThis.__cyberhunt_state = {
               ...parsedState,
+              passkeys: { ...globalThis.__cyberhunt_state!.passkeys, ...(parsedState.passkeys || {}) },
+              passkeyHints: { ...globalThis.__cyberhunt_state!.passkeyHints, ...(parsedState.passkeyHints || {}) },
+              answerResults: parsedState.answerResults || {},
+              verifiedPasskeys: parsedState.verifiedPasskeys || {},
+              sessionStartedAt: parsedState.sessionStartedAt || {},
               _initialized_from_storage: true
             };
           }
@@ -81,6 +94,11 @@ export async function GET() {
           if (parsedState && parsedState.sessions) {
             globalThis.__cyberhunt_state = {
               ...parsedState,
+              passkeys: { ...globalThis.__cyberhunt_state!.passkeys, ...(parsedState.passkeys || {}) },
+              passkeyHints: { ...globalThis.__cyberhunt_state!.passkeyHints, ...(parsedState.passkeyHints || {}) },
+              answerResults: parsedState.answerResults || {},
+              verifiedPasskeys: parsedState.verifiedPasskeys || {},
+              sessionStartedAt: parsedState.sessionStartedAt || {},
               _initialized_from_storage: true
             };
           }
@@ -92,13 +110,123 @@ export async function GET() {
       }
     }
   }
-  
-  return NextResponse.json(globalThis.__cyberhunt_state);
+}
+
+async function persistState() {
+  if (supabaseUrl !== 'https://placeholder.supabase.co') {
+    const { error } = await supabase.storage.from('cyberhunt-media')
+      .upload('state.json', JSON.stringify(globalThis.__cyberhunt_state), {
+        contentType: 'application/json',
+        upsert: true
+      });
+    if (error) throw error;
+    return;
+  }
+
+  const localPath = path.join(process.cwd(), '.next', 'local_state.json');
+  fs.writeFileSync(localPath, JSON.stringify(globalThis.__cyberhunt_state));
+}
+
+const getPublicState = () => {
+  const state = globalThis.__cyberhunt_state!;
+  const participantPasskeys = Object.fromEntries(
+    Object.entries(state.passkeys).filter(([session]) => ['1', '2', '3'].includes(session))
+  );
+  const publicQuestions = Object.fromEntries(
+    Object.entries(state.questions || {}).map(([session, questions]) => [
+      session,
+      questions.map(({ answer, ...question }) => question),
+    ])
+  );
+  const publicState = { ...state, passkeys: participantPasskeys, questions: publicQuestions };
+  delete publicState.answerResults;
+  delete publicState.verifiedPasskeys;
+  delete publicState.sessionStartedAt;
+  return publicState;
+};
+
+const sessionDurations: Record<string, number> = { '1': 600, '2': 1200, '3': 1500, '4': 1500 };
+
+const isSessionOpenForTeam = (teamAlias: string, session: string) => {
+  if (globalThis.__cyberhunt_state!.sessions[session] !== 'ACTIVE') return false;
+  const startedAt = globalThis.__cyberhunt_state!.sessionStartedAt?.[teamAlias]?.[session];
+  return !startedAt || Date.now() - startedAt < sessionDurations[session] * 1000;
+};
+
+export async function GET(request: Request) {
+  await initializeState();
+
+  if (verifyAdminSession(getAdminSessionToken(request.headers.get('cookie')))) {
+    return NextResponse.json(globalThis.__cyberhunt_state);
+  }
+
+  return NextResponse.json(getPublicState());
 }
 
 export async function POST(req: Request) {
   try {
+    await initializeState();
     const data = await req.json();
+
+    const adminOnlyTypes = new Set([
+      'update_session',
+      'update_questions',
+      'update_passkey',
+      'update_passkey_hint',
+      'delete_team',
+      'sync_deleted_teams',
+      'update_team',
+    ]);
+    if (adminOnlyTypes.has(data.type) && !verifyAdminSession(getAdminSessionToken(req.headers.get('cookie')))) {
+      return NextResponse.json({ error: "Admin authentication required" }, { status: 401 });
+    }
+
+    if (data.type === 'verify_passkey') {
+      const session = String(data.session);
+      if (!['1', '2', '3', '4'].includes(session)) {
+        return NextResponse.json({ error: "Invalid session" }, { status: 400 });
+      }
+      const teamAlias = String(data.team_alias ?? '').trim();
+      if (!teamAlias) return NextResponse.json({ error: "Team is required" }, { status: 400 });
+      const expectedPasskey = globalThis.__cyberhunt_state!.passkeys[session] || '';
+      const submittedPasskey = String(data.passkey ?? '').trim().toUpperCase();
+      const correct = isSessionOpenForTeam(teamAlias, session) &&
+        secureStringEqual(submittedPasskey, expectedPasskey.trim().toUpperCase());
+      if (correct) {
+        if (!globalThis.__cyberhunt_state!.verifiedPasskeys) globalThis.__cyberhunt_state!.verifiedPasskeys = {};
+        if (!globalThis.__cyberhunt_state!.verifiedPasskeys![teamAlias]) globalThis.__cyberhunt_state!.verifiedPasskeys![teamAlias] = {};
+        globalThis.__cyberhunt_state!.verifiedPasskeys![teamAlias][session] = true;
+        await persistState();
+      }
+      return NextResponse.json({ correct });
+    }
+
+    if (data.type === 'verify_question_answer') {
+      const session = String(data.session);
+      const questionIndex = Number(data.question_index);
+      if (!['1', '2', '3'].includes(session) || !Number.isInteger(questionIndex) || questionIndex < 0) {
+        return NextResponse.json({ error: "Invalid question" }, { status: 400 });
+      }
+
+      const question = globalThis.__cyberhunt_state!.questions[session]?.[questionIndex];
+      if (!question) return NextResponse.json({ error: "Question not found" }, { status: 404 });
+
+      const teamAlias = String(data.team_alias ?? '').trim();
+      if (!teamAlias) return NextResponse.json({ error: "Team is required" }, { status: 400 });
+      const submittedAnswer = String(data.answer ?? '').trim().toUpperCase();
+      const correct = isSessionOpenForTeam(teamAlias, session) &&
+        secureStringEqual(submittedAnswer, String(question.answer ?? '').trim().toUpperCase());
+      if (correct) {
+        if (!globalThis.__cyberhunt_state!.answerResults) globalThis.__cyberhunt_state!.answerResults = {};
+        if (!globalThis.__cyberhunt_state!.answerResults![teamAlias]) globalThis.__cyberhunt_state!.answerResults![teamAlias] = {};
+        if (!globalThis.__cyberhunt_state!.answerResults![teamAlias][session]) globalThis.__cyberhunt_state!.answerResults![teamAlias][session] = {};
+        globalThis.__cyberhunt_state!.answerResults![teamAlias][session][String(questionIndex)] = true;
+        await persistState();
+      }
+      return NextResponse.json({
+        correct,
+      });
+    }
     
     if (data.type === 'update_session') {
       globalThis.__cyberhunt_state!.sessions[data.session] = data.status;
@@ -155,6 +283,14 @@ export async function POST(req: Request) {
     }
     else if (data.type === 'ping_progress') {
       if (!globalThis.__cyberhunt_state!.progress) globalThis.__cyberhunt_state!.progress = {};
+      const session = String(data.session);
+      if (globalThis.__cyberhunt_state!.sessions[session] === 'ACTIVE') {
+        if (!globalThis.__cyberhunt_state!.sessionStartedAt) globalThis.__cyberhunt_state!.sessionStartedAt = {};
+        if (!globalThis.__cyberhunt_state!.sessionStartedAt![data.team_alias]) globalThis.__cyberhunt_state!.sessionStartedAt![data.team_alias] = {};
+        if (!globalThis.__cyberhunt_state!.sessionStartedAt![data.team_alias][session]) {
+          globalThis.__cyberhunt_state!.sessionStartedAt![data.team_alias][session] = Date.now();
+        }
+      }
       globalThis.__cyberhunt_state!.progress[data.team_alias] = {
         session: data.session,
         question: data.question,
@@ -162,36 +298,45 @@ export async function POST(req: Request) {
       };
     }
     else if (data.type === 'submit_score') {
+      const teamAlias = String(data.team_alias ?? '').trim();
+      const session = String(data.session);
+      if (!teamAlias || !['1', '2', '3', '4'].includes(session)) {
+        return NextResponse.json({ error: "Invalid score submission" }, { status: 400 });
+      }
+      if (!globalThis.__cyberhunt_state!.verifiedPasskeys?.[teamAlias]?.[session]) {
+        return NextResponse.json({ error: "Session passkey has not been verified" }, { status: 403 });
+      }
+      if (!isSessionOpenForTeam(teamAlias, session)) {
+        return NextResponse.json({ error: "Session time has expired" }, { status: 403 });
+      }
       if (!globalThis.__cyberhunt_state!.scores) globalThis.__cyberhunt_state!.scores = {};
-      if (!globalThis.__cyberhunt_state!.scores[data.team_alias]) globalThis.__cyberhunt_state!.scores[data.team_alias] = {};
+      if (!globalThis.__cyberhunt_state!.scores[teamAlias]) globalThis.__cyberhunt_state!.scores[teamAlias] = {};
       
-      if (!globalThis.__cyberhunt_state!.scores[data.team_alias][data.session]) {
-        globalThis.__cyberhunt_state!.scores[data.team_alias][data.session] = {
-          score: data.score,
-          time_taken: data.time_taken
-        };
+      if (!globalThis.__cyberhunt_state!.scores[teamAlias][session]) {
+        const questionCount = globalThis.__cyberhunt_state!.questions[session]?.length || 0;
+        const correctCount = Object.values(globalThis.__cyberhunt_state!.answerResults?.[teamAlias]?.[session] || {}).filter(Boolean).length;
+        const score = session === '1' ? 5 + correctCount
+          : session === '2' ? 5 + correctCount * 5
+          : session === '3' ? 5 + correctCount * 10
+          : 10;
+        const duration = sessionDurations[session];
+        const startedAt = globalThis.__cyberhunt_state!.sessionStartedAt?.[teamAlias]?.[session];
+        const timeTaken = Math.min(duration, Math.max(0, startedAt ? Math.floor((Date.now() - startedAt) / 1000) : duration));
+        globalThis.__cyberhunt_state!.scores[teamAlias][session] = { score: Math.min(score, session === '1' ? 5 + questionCount : session === '2' ? 5 + questionCount * 5 : session === '3' ? 5 + questionCount * 10 : 10), time_taken: timeTaken };
       }
     }
 
-    if (supabaseUrl !== 'https://placeholder.supabase.co') {
-      try {
-        await supabase.storage.from('cyberhunt-media')
-          .upload('state.json', JSON.stringify(globalThis.__cyberhunt_state), {
-            contentType: 'application/json',
-            upsert: true
-          });
-      } catch (err) {
-        console.error("Storage state sync error:", err);
-      }
-    } else {
-      // Local development fallback
-      try {
-        const localPath = path.join(process.cwd(), '.next', 'local_state.json');
-        fs.writeFileSync(localPath, JSON.stringify(globalThis.__cyberhunt_state));
-      } catch(e) {}
+    try {
+      await persistState();
+    } catch (err) {
+      console.error("Storage state sync error:", err);
+      return NextResponse.json({ error: "Failed to persist shared state" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, state: globalThis.__cyberhunt_state });
+    const responseState = verifyAdminSession(getAdminSessionToken(req.headers.get('cookie')))
+      ? globalThis.__cyberhunt_state
+      : getPublicState();
+    return NextResponse.json({ success: true, state: responseState });
   } catch (error) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }

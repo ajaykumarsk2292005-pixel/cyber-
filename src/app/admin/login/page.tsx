@@ -11,13 +11,28 @@ export default function AdminLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === "Ajay" && password === "212006") {
-      router.push("/admin/dashboard");
-    } else {
-      setError("Invalid credentials. Access denied.");
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Invalid credentials. Access denied.");
+      }
+      router.replace("/admin/dashboard");
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Unable to authenticate.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -87,8 +102,8 @@ export default function AdminLogin() {
               />
             </div>
 
-            <button type="submit" className="w-full mt-8 flex items-center justify-center gap-2 px-6 py-4 bg-zinc-100 text-black font-mono font-bold hover:bg-zinc-300 transition-all uppercase tracking-widest text-xs">
-              Authenticate <ArrowRight className="w-4 h-4" />
+            <button type="submit" disabled={isSubmitting} className="w-full mt-8 flex items-center justify-center gap-2 px-6 py-4 bg-zinc-100 text-black font-mono font-bold hover:bg-zinc-300 transition-all uppercase tracking-widest text-xs disabled:opacity-50">
+              {isSubmitting ? "Authenticating" : "Authenticate"} <ArrowRight className="w-4 h-4" />
             </button>
           </form>
         </motion.div>
