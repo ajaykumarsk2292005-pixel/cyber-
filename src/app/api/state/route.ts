@@ -153,8 +153,27 @@ const isSessionOpenForTeam = (teamAlias: string, session: string) => {
   return !startedAt || Date.now() - startedAt < sessionDurations[session] * 1000;
 };
 
+async function hydrateDatabaseScores() {
+  if (supabaseUrl === 'https://placeholder.supabase.co') return;
+  const { data, error } = await supabase
+    .from('scores')
+    .select('team_alias, session_number, score, time_taken');
+  if (error || !data) return;
+
+  if (!globalThis.__cyberhunt_state!.scores) globalThis.__cyberhunt_state!.scores = {};
+  for (const entry of data) {
+    const teamAlias = String(entry.team_alias);
+    if (!globalThis.__cyberhunt_state!.scores[teamAlias]) globalThis.__cyberhunt_state!.scores[teamAlias] = {};
+    globalThis.__cyberhunt_state!.scores[teamAlias][String(entry.session_number)] = {
+      score: Number(entry.score) || 0,
+      time_taken: Number(entry.time_taken) || 0,
+    };
+  }
+}
+
 export async function GET(request: Request) {
   await initializeState();
+  await hydrateDatabaseScores();
 
   if (verifyAdminSession(getAdminSessionToken(request.headers.get('cookie')))) {
     return NextResponse.json(globalThis.__cyberhunt_state);
@@ -323,6 +342,26 @@ export async function POST(req: Request) {
         const startedAt = globalThis.__cyberhunt_state!.sessionStartedAt?.[teamAlias]?.[session];
         const timeTaken = Math.min(duration, Math.max(0, startedAt ? Math.floor((Date.now() - startedAt) / 1000) : duration));
         globalThis.__cyberhunt_state!.scores[teamAlias][session] = { score: Math.min(score, session === '1' ? 5 + questionCount : session === '2' ? 5 + questionCount * 5 : session === '3' ? 5 + questionCount * 10 : 10), time_taken: timeTaken };
+      }
+    }
+
+    if (supabaseUrl !== 'https://placeholder.supabase.co') {
+      try {
+        if (data.type === 'submit_score') {
+          const teamAlias = String(data.team_alias);
+          const session = String(data.session);
+          const score = globalThis.__cyberhunt_state!.scores[teamAlias][session];
+          const { error } = await supabase.from('scores').upsert({
+            team_alias: teamAlias,
+            session_number: Number(session),
+            score: score.score,
+            time_taken: score.time_taken
+          }, { onConflict: 'team_alias,session_number' });
+          if (error) throw error;
+        }
+      } catch (error) {
+        console.error("Score table persistence error:", error);
+        return NextResponse.json({ error: "Failed to persist score" }, { status: 500 });
       }
     }
 

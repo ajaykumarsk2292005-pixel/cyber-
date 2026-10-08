@@ -8,6 +8,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
 import { fetchSessionState, fetchSessionPasskeyHint, submitSessionScore, verifyQuestionAnswer, verifySessionPasskey } from "@/lib/stateSync";
+import { startSessionTimer } from "@/lib/sessionTimer";
 
 export default function SessionThree() {
   const router = useRouter();
@@ -51,29 +52,12 @@ export default function SessionThree() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    const storedRemaining = localStorage.getItem("session_3_timeleft");
-    const parsedRemaining = storedRemaining === null ? 1500 : Number(storedRemaining);
-    const initialRemaining = Number.isFinite(parsedRemaining)
-      ? Math.min(Math.max(parsedRemaining, 0), 1500)
-      : 1500;
-    localStorage.setItem("session_3_timeleft", initialRemaining.toString());
-    setTimeLeft(initialRemaining);
-
-    const updateTimer = () => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          setSessionStatus("ENDED");
-          localStorage.setItem("session_3_timeleft", "0");
-          return 0;
-        }
-        const newTime = prev - 1;
-        localStorage.setItem("session_3_timeleft", newTime.toString());
-        return newTime;
-      });
-    };
-
-    const timer = setInterval(updateTimer, 1000);
-    return () => clearInterval(timer);
+    return startSessionTimer({
+      sessionNumber: 3,
+      durationSeconds: 1500,
+      onTick: setTimeLeft,
+      onExpire: () => setSessionStatus("ENDED"),
+    });
   }, [isCompleted, sessionStatus]);
 
   useEffect(() => {

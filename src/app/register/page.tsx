@@ -28,6 +28,10 @@ export default function Register() {
     localStorage.removeItem("session_2_timeleft");
     localStorage.removeItem("session_3_timeleft");
     localStorage.removeItem("session_4_timeleft");
+    localStorage.removeItem("session_1_deadline");
+    localStorage.removeItem("session_2_deadline");
+    localStorage.removeItem("session_3_deadline");
+    localStorage.removeItem("session_4_deadline");
     localStorage.removeItem("session_1_completed");
     localStorage.removeItem("session_2_completed");
     localStorage.removeItem("session_3_completed");

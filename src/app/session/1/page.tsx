@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getQuestions, Question } from "@/lib/questions";
 import { fetchSessionState, fetchSessionPasskeyHint, submitSessionScore, verifyQuestionAnswer, verifySessionPasskey } from "@/lib/stateSync";
+import { getSessionTimeLeft, startSessionTimer } from "@/lib/sessionTimer";
 
 export default function SessionOne() {
   const router = useRouter();
@@ -36,29 +37,12 @@ export default function SessionOne() {
   useEffect(() => {
     if (isCompleted || sessionStatus !== "ACTIVE") return;
 
-    const storedRemaining = localStorage.getItem("session_1_timeleft");
-    const parsedRemaining = storedRemaining === null ? 600 : Number(storedRemaining);
-    const initialRemaining = Number.isFinite(parsedRemaining)
-      ? Math.min(Math.max(parsedRemaining, 0), 600)
-      : 600;
-    localStorage.setItem("session_1_timeleft", initialRemaining.toString());
-    setTimeLeft(initialRemaining);
-
-    const updateTimer = () => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          setSessionStatus("ENDED");
-          localStorage.setItem("session_1_timeleft", "0");
-          return 0;
-        }
-        const newTime = prev - 1;
-        localStorage.setItem("session_1_timeleft", newTime.toString());
-        return newTime;
-      });
-    };
-
-    const timer = setInterval(updateTimer, 1000);
-    return () => clearInterval(timer);
+    return startSessionTimer({
+      sessionNumber: 1,
+      durationSeconds: 600,
+      onTick: setTimeLeft,
+      onExpire: () => setSessionStatus("ENDED"),
+    });
   }, [isCompleted, sessionStatus]);
 
   useEffect(() => {

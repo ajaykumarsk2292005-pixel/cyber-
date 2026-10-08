@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Shield, KeyRound, Terminal, Lock, CheckCircle2, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { fetchSessionState, fetchSessionPasskey, fetchSessionPasskeyHint, submitSessionScore, verifySessionPasskey } from "@/lib/stateSync";
+import { startSessionTimer } from "@/lib/sessionTimer";
 
 export default function SessionFourFinale() {
   const router = useRouter();
@@ -20,29 +21,12 @@ export default function SessionFourFinale() {
   useEffect(() => {
     if (isSuccess || sessionStatus !== "ACTIVE") return;
 
-    const storedRemaining = localStorage.getItem("session_4_timeleft");
-    const parsedRemaining = storedRemaining === null ? 1500 : Number(storedRemaining);
-    const initialRemaining = Number.isFinite(parsedRemaining)
-      ? Math.min(Math.max(parsedRemaining, 0), 1500)
-      : 1500;
-    localStorage.setItem("session_4_timeleft", initialRemaining.toString());
-    setTimeLeft(initialRemaining);
-
-    const updateTimer = () => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          setSessionStatus("ENDED");
-          localStorage.setItem("session_4_timeleft", "0");
-          return 0;
-        }
-        const newTime = prev - 1;
-        localStorage.setItem("session_4_timeleft", newTime.toString());
-        return newTime;
-      });
-    };
-
-    const timer = setInterval(updateTimer, 1000);
-    return () => clearInterval(timer);
+    return startSessionTimer({
+      sessionNumber: 4,
+      durationSeconds: 1500,
+      onTick: setTimeLeft,
+      onExpire: () => setSessionStatus("ENDED"),
+    });
   }, [isSuccess, sessionStatus]);
   useEffect(() => {
     const currentSession = parseInt(localStorage.getItem("cyberhunt_current_session") || "1");
