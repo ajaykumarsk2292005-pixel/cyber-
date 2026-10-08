@@ -164,37 +164,82 @@ const isSessionOpenForTeam = (teamAlias: string, session: string) => {
   return !startedAt || Date.now() - startedAt < sessionDurations[session] * 1000;
 };
 
-async function hydrateDatabaseScores() {
+async function syncWithDatabase() {
   if (supabaseUrl === 'https://placeholder.supabase.co') return;
-  if (globalThis.__cyberhunt_state?._scores_hydrated) return;
+
+  const timeout = (ms: number) => new Promise((_, reject) => setTimeout(() => reject(new Error("DB Timeout")), ms));
 
   try {
-    const { data, error } = await supabase
-      .from('scores')
-      .select('team_alias, session_number, score, time_taken');
+    // 1. Sync Sessions
+    const sessionsPromise = supabase.from('sessions').select('session_number, status, passkey');
+    const { data: sessionData } = await Promise.race([sessionsPromise, timeout(1500)]) as any;
     
-    globalThis.__cyberhunt_state!._scores_hydrated = true;
-    
-    if (error || !data) return;
-
-    if (!globalThis.__cyberhunt_state!.scores) globalThis.__cyberhunt_state!.scores = {};
-    for (const entry of data) {
-      const teamAlias = String(entry.team_alias);
-      if (!globalThis.__cyberhunt_state!.scores[teamAlias]) globalThis.__cyberhunt_state!.scores[teamAlias] = {};
-      globalThis.__cyberhunt_state!.scores[teamAlias][String(entry.session_number)] = {
-        score: Number(entry.score) || 0,
-        time_taken: Number(entry.time_taken) || 0,
-      };
+    if (sessionData) {
+      for (const s of sessionData) {
+        const sNum = String(s.session_number);
+        if (s.status) globalThis.__cyberhunt_state!.sessions[sNum] = s.status;
+        if (s.passkey) {
+           if (!globalThis.__cyberhunt_state!.passkeys) globalThis.__cyberhunt_state!.passkeys = {};
+           globalThis.__cyberhunt_state!.passkeys[sNum] = s.passkey;
+        }
+      }
     }
+
+    // 2. Sync Questions
+    const questionsPromise = supabase.from('questions').select('*').order('question_index', { ascending: true });
+    const { data: qData } = await Promise.race([questionsPromise, timeout(1500)]) as any;
+    if (qData) {
+      const qBySession: any = {};
+      for (const q of qData) {
+         const sNum = String(q.session_number);
+         if (!qBySession[sNum]) qBySession[sNum] = [];
+         qBySession[sNum].push({
+           id: q.id,
+           text: q.text,
+           options: q.options,
+           answer: q.answer,
+           mediaUrl: q.media_url
+         });
+      }
+      globalThis.__cyberhunt_state!.questions = { ...globalThis.__cyberhunt_state!.questions, ...qBySession };
+    }
+
+    // 3. Sync Scores
+    const scoresPromise = supabase.from('scores').select('team_alias, session_number, score, time_taken');
+    const { data: scoreData } = await Promise.race([scoresPromise, timeout(1500)]) as any;
+    if (scoreData) {
+      if (!globalThis.__cyberhunt_state!.scores) globalThis.__cyberhunt_state!.scores = {};
+      for (const entry of scoreData) {
+        const teamAlias = String(entry.team_alias);
+        if (!globalThis.__cyberhunt_state!.scores[teamAlias]) globalThis.__cyberhunt_state!.scores[teamAlias] = {};
+        globalThis.__cyberhunt_state!.scores[teamAlias][String(entry.session_number)] = {
+          score: Number(entry.score) || 0,
+          time_taken: Number(entry.time_taken) || 0,
+        };
+      }
+    }
+    // 4. Sync Teams
+    const teamsPromise = supabase.from('teams').select('team_alias, node_alpha, node_beta, college, status');
+    const { data: teamData } = await Promise.race([teamsPromise, timeout(1500)]) as any;
+    if (teamData) {
+       const mappedTeams = teamData.map((t: any) => ({
+         team_alias: t.team_alias,
+         node_alpha: t.node_alpha,
+         node_beta: t.node_beta,
+         college: t.college,
+         status: t.status
+       }));
+       globalThis.__cyberhunt_state!.teams = mappedTeams;
+    }
+
   } catch (e) {
-    globalThis.__cyberhunt_state!._scores_hydrated = true;
-    console.error("Hydrate error", e);
+    console.warn("DB Sync fast-fail (fallback to memory):", e);
   }
 }
 
 export async function GET(request: Request) {
   await initializeState();
-  await hydrateDatabaseScores();
+  await syncWithDatabase();
 
   if (verifyAdminSession(getAdminSessionToken(request.headers.get('cookie')))) {
     return NextResponse.json(globalThis.__cyberhunt_state);
@@ -261,6 +306,21 @@ export async function POST(req: Request) {
         if (!globalThis.__cyberhunt_state!.answerResults![teamAlias]) globalThis.__cyberhunt_state!.answerResults![teamAlias] = {};
         if (!globalThis.__cyberhunt_state!.answerResults![teamAlias][session]) globalThis.__cyberhunt_state!.answerResults![teamAlias][session] = {};
         globalThis.__cyberhunt_state!.answerResults![teamAlias][session][String(questionIndex)] = true;
+        
+        // Save answer to DB asynchronously
+        if (supabaseUrl !== 'https://placeholder.supabase.co') {
+          supabase.from('teams').select('id').eq('team_alias', teamAlias).single().then(({ data: tData }) => {
+            if (tData) {
+               supabase.from('answers').insert({
+                 team_id: tData.id,
+                 session_number: Number(session),
+                 question_index: questionIndex,
+                 answer: submittedAnswer,
+                 is_correct: correct
+               }).then();
+            }
+          });
+        }
         await persistState();
       }
       return NextResponse.json({
@@ -270,14 +330,32 @@ export async function POST(req: Request) {
     
     if (data.type === 'update_session') {
       globalThis.__cyberhunt_state!.sessions[data.session] = data.status;
+      if (supabaseUrl !== 'https://placeholder.supabase.co') {
+         await supabase.from('sessions').upsert({ session_number: Number(data.session), status: data.status }, { onConflict: 'session_number' });
+      }
     } 
     else if (data.type === 'update_questions') {
       if (!globalThis.__cyberhunt_state!.questions) globalThis.__cyberhunt_state!.questions = {};
       globalThis.__cyberhunt_state!.questions[data.session] = data.questions;
+      if (supabaseUrl !== 'https://placeholder.supabase.co' && data.questions && data.questions.length > 0) {
+         await supabase.from('questions').delete().eq('session_number', Number(data.session));
+         const inserts = data.questions.map((q: any, i: number) => ({
+           session_number: Number(data.session),
+           question_index: i,
+           text: q.text || '',
+           options: q.options || [],
+           answer: q.answer || '',
+           media_url: q.mediaUrl || null
+         }));
+         await supabase.from('questions').insert(inserts);
+      }
     }
     else if (data.type === 'update_passkey') {
       if (!globalThis.__cyberhunt_state!.passkeys) globalThis.__cyberhunt_state!.passkeys = {};
       globalThis.__cyberhunt_state!.passkeys[data.session] = data.passkey;
+      if (supabaseUrl !== 'https://placeholder.supabase.co') {
+         await supabase.from('sessions').upsert({ session_number: Number(data.session), passkey: data.passkey }, { onConflict: 'session_number' });
+      }
     }
     else if (data.type === 'update_passkey_hint') {
       if (!globalThis.__cyberhunt_state!.passkeyHints) globalThis.__cyberhunt_state!.passkeyHints = {};
@@ -298,6 +376,15 @@ export async function POST(req: Request) {
           d => String(d).toLowerCase() !== String(alias).toLowerCase()
         );
       }
+      if (supabaseUrl !== 'https://placeholder.supabase.co') {
+         await supabase.from('teams').upsert({
+           team_alias: alias,
+           node_alpha: data.team.nodeAlpha || data.team.node_alpha || '',
+           node_beta: data.team.nodeBeta || data.team.node_beta || '',
+           college: data.team.college || '',
+           status: data.team.status || 'WAITING'
+         }, { onConflict: 'team_alias' });
+      }
     }
     else if (data.type === 'delete_team') {
       if (!globalThis.__cyberhunt_state!.deleted_teams) globalThis.__cyberhunt_state!.deleted_teams = [];
@@ -306,19 +393,34 @@ export async function POST(req: Request) {
       globalThis.__cyberhunt_state!.teams = globalThis.__cyberhunt_state!.teams.filter(
         t => t.team_alias !== data.team_alias && t.teamAlias !== data.team_alias
       );
+      if (supabaseUrl !== 'https://placeholder.supabase.co') {
+         await supabase.from('teams').delete().eq('team_alias', data.team_alias);
+      }
     }
     else if (data.type === 'sync_deleted_teams') {
       globalThis.__cyberhunt_state!.deleted_teams = data.deleted_teams;
+      if (supabaseUrl !== 'https://placeholder.supabase.co' && data.deleted_teams && data.deleted_teams.length > 0) {
+         await supabase.from('teams').delete().in('team_alias', data.deleted_teams);
+      }
     }
     else if (data.type === 'update_team') {
       const idx = globalThis.__cyberhunt_state!.teams.findIndex(
         t => t.team_alias === data.team.team_alias || t.teamAlias === data.team.teamAlias
       );
+      const alias = data.team.team_alias || data.team.teamAlias;
       if (idx !== -1) {
         globalThis.__cyberhunt_state!.teams[idx] = {
           ...globalThis.__cyberhunt_state!.teams[idx],
           ...data.team
         };
+      }
+      if (supabaseUrl !== 'https://placeholder.supabase.co') {
+         await supabase.from('teams').update({
+           node_alpha: data.team.nodeAlpha || data.team.node_alpha,
+           node_beta: data.team.nodeBeta || data.team.node_beta,
+           college: data.team.college,
+           status: data.team.status
+         }).eq('team_alias', alias);
       }
     }
     else if (data.type === 'ping_progress') {
